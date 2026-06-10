@@ -108,7 +108,7 @@ const server = createServer((req, res) => {
 
   if (url.pathname === '/api/sync') {
     sync();
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': `http://localhost:${PORT}` });
     return res.end(JSON.stringify({ ok: true, count: skills.length }));
   }
 
@@ -128,7 +128,7 @@ const server = createServer((req, res) => {
     }
 
     results = results.slice(offset, offset + limit);
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': `http://localhost:${PORT}` });
     return res.end(JSON.stringify(results));
   }
 
