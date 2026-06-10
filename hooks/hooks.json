@@ -9,6 +9,11 @@
             "type": "command",
             "command": "powershell -ExecutionPolicy Bypass -NonInteractive -File \"$CLAUDE_PLUGIN_ROOT/hooks/scripts/sync-skills.ps1\"",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PLUGIN_ROOT/hooks/scripts/sync-skills.sh\"",
+            "timeout": 15
           }
         ]
       }

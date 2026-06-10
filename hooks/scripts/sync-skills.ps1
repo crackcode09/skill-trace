@@ -100,9 +100,9 @@ if (-not (Test-Path $global_path)) {
     $init = @"
 # Global Skills Log
 
-> Auto-synced from all PBC Linear project `docs/skills.md` files.
+> Auto-synced from all project ``docs/skills.md`` files.
 > Each entry is tagged with its source project.
-> Search with `/gskills <keyword>` or filter with `--project <name>`.
+> Search at http://localhost:38888
 
 "@
     Set-Content $global_path $init -Encoding UTF8

@@ -63,16 +63,36 @@ function sync() {
 sync();
 
 // ── Live watch: re-sync when MD changes ──────────────────────────────────────
+// Two-layer strategy: file watcher for fast change detection; directory watcher
+// to arm the file watcher the first time global-skills.md is created.
 
-if (existsSync(MD_PATH)) {
-  let debounce = null;
-  watch(MD_PATH, () => {
-    clearTimeout(debounce);
-    debounce = setTimeout(() => {
-      console.log('[global-skills] MD changed — resyncing');
-      sync();
-    }, 500);
+let debounce = null;
+let fileWatcher = null;
+
+function armFileWatch() {
+  if (fileWatcher || !existsSync(MD_PATH)) return;
+  try {
+    fileWatcher = watch(MD_PATH, () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        console.log('[global-skills] MD changed — resyncing');
+        sync();
+      }, 500);
+    });
+  } catch (err) {
+    console.log(`[global-skills] file watch failed: ${err.message}`);
+  }
+}
+
+armFileWatch(); // works immediately if the file already exists
+
+// Directory watch detects first creation of global-skills.md
+try {
+  watch(join(HOME, '.claude'), (event, filename) => {
+    if (filename === 'global-skills.md') armFileWatch();
   });
+} catch {
+  // directory may not exist yet on a brand-new install — not fatal
 }
 
 // ── Search: case-insensitive substring across all text fields ─────────────────
@@ -134,6 +154,14 @@ const server = createServer((req, res) => {
 
   res.writeHead(404);
   res.end('Not found');
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.log(`[global-skills] port ${PORT} already in use — exiting cleanly`);
+    process.exit(0);
+  }
+  throw err;
 });
 
 server.listen(PORT, '127.0.0.1', () => {

@@ -39,8 +39,9 @@ SessionStart hook → start-viewer.ps1 / start-viewer.sh
                       └── POST /api/sync    →  manual re-parse
 
 On any Write/Edit to docs/skills.md:
-PostToolUse hook → sync-skills.ps1 → append to global-skills.md
-                                    → fs.watch picks up change → array resyncs
+PostToolUse hook → sync-skills.ps1 (Windows)  ┐
+                 → sync-skills.sh  (mac/Linux) ┘→ append to global-skills.md
+                                                  → fs.watch picks up change → array resyncs
 ```
 
 ---
@@ -78,6 +79,8 @@ git clone https://github.com/crackcode09/skill-trace ~/.claude/skills/skill-trac
 
 **2. Add the hooks to `~/.claude/settings.json`** (manual install only)
 
+**Windows** — replace `YOUR_NAME` with your Windows username:
+
 ```json
 {
   "hooks": {
@@ -105,7 +108,36 @@ git clone https://github.com/crackcode09/skill-trace ~/.claude/skills/skill-trac
 }
 ```
 
-> Replace `YOUR_NAME` with your Windows username. On macOS/Linux, use `start-viewer.sh` instead.
+**macOS / Linux** — replace `YOUR_NAME` with your username:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [{
+          "type": "command",
+          "command": "bash \"/home/YOUR_NAME/.claude/skills/skill-trace/hooks/scripts/sync-skills.sh\"",
+          "timeout": 15
+        }]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [{
+          "type": "command",
+          "command": "bash \"/home/YOUR_NAME/.claude/skills/skill-trace/hooks/scripts/start-viewer.sh\"",
+          "timeout": 30
+        }]
+      }
+    ]
+  }
+}
+```
+
+> On macOS use `~` or `/Users/YOUR_NAME` instead of `/home/YOUR_NAME`.
 
 **3. Start a new Claude Code session**
 
@@ -220,12 +252,10 @@ skill-trace/
 ├── hooks/
 │   ├── hooks.json
 │   └── scripts/
-│       ├── sync-skills.ps1    # PostToolUse: append to global-skills.md
+│       ├── sync-skills.ps1    # PostToolUse: Windows — append to global-skills.md
+│       ├── sync-skills.sh     # PostToolUse: macOS/Linux — append to global-skills.md
 │       ├── start-viewer.ps1   # SessionStart: Windows viewer startup
 │       └── start-viewer.sh    # SessionStart: macOS/Linux viewer startup
-├── skills/
-│   └── gskills/
-│       └── SKILL.md       # /gskills slash command
 ├── .claude-plugin/
 │   └── plugin.json
 ├── LICENSE
