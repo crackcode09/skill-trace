@@ -162,7 +162,7 @@ partial request.
 a full layout vs. a fragment.
 ```
 
-The PostToolUse hook fires on every save, appends to `~/.claude/global-skills.md`, and the viewer resyncs within 500ms. Search with `/gskills` from inside Claude Code, or open `http://localhost:38888` in a browser.
+The PostToolUse hook fires on every save, appends to `~/.claude/global-skills.md`, and the viewer resyncs within 500ms. Open `http://localhost:38888` in a browser to search.
 
 ---
 
@@ -230,6 +230,14 @@ The viewer proves value before investing in the harder PreToolUse context-inject
 
 ---
 
+## `// known limitations`
+
+- **Append-only sync** — entries are deduplicated by header + project name. If you rename an entry's title or fix a typo in its date, a duplicate appears in `global-skills.md`. Body edits (problem/solution/takeaway text) never propagate to the global file. To correct an entry, edit it directly in `~/.claude/global-skills.md`.
+- **Pure Windows without Git Bash** — the bash hooks (`sync-skills.sh`, `start-viewer.sh`) require bash. On a machine with only PowerShell and no Git Bash installed, use the Windows-only manual hooks snippet in the install section above.
+- **< 1000 entries** — the in-memory `Array.filter()` search is fast up to roughly 1000 entries. Beyond that, consider the v1.3.0 BM25 scorer (see roadmap).
+
+---
+
 ## `// roadmap`
 
 | Version | Feature | Status |
@@ -256,6 +264,9 @@ skill-trace/
 │       ├── sync-skills.sh     # PostToolUse: macOS/Linux — append to global-skills.md
 │       ├── start-viewer.ps1   # SessionStart: Windows viewer startup
 │       └── start-viewer.sh    # SessionStart: macOS/Linux viewer startup
+├── skills/
+│   └── gskills/
+│       └── SKILL.md           # /gskills slash command — search global skills log
 ├── .claude-plugin/
 │   └── plugin.json
 ├── LICENSE

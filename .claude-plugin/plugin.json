@@ -9,5 +9,11 @@
   "homepage": "https://github.com/crackcode09/skill-trace",
   "repository": "https://github.com/crackcode09/skill-trace",
   "license": "MIT",
-  "keywords": ["skills", "knowledge", "institutional-memory", "developer-tools", "claude-code"]
+  "keywords": ["skills", "knowledge", "institutional-memory", "developer-tools", "claude-code"],
+  "skills": [
+    {
+      "name": "gskills",
+      "path": "skills/gskills/SKILL.md"
+    }
+  ]
 }

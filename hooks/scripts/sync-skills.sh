@@ -6,6 +6,12 @@
 # Never error out — hooks must be silent on failure
 set +e
 
+# Gate: Windows (Git Bash / MSYS / Cygwin) is handled by sync-skills.ps1.
+# Exiting here prevents a TOCTOU race where both scripts append simultaneously.
+case "$OSTYPE" in
+  msys*|cygwin*|win32*) exit 0 ;;
+esac
+
 # Require python3
 command -v python3 >/dev/null 2>&1 || exit 0
 

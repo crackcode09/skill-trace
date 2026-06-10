@@ -127,6 +127,10 @@ const server = createServer((req, res) => {
   }
 
   if (url.pathname === '/api/sync') {
+    if (req.method !== 'POST') {
+      res.writeHead(405, { Allow: 'POST' });
+      return res.end('Method Not Allowed');
+    }
     sync();
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': `http://localhost:${PORT}` });
     return res.end(JSON.stringify({ ok: true, count: skills.length }));

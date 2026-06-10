@@ -4,6 +4,9 @@
 
 param()
 
+# Gate: only run on Windows. Handles PowerShell Core installed on macOS/Linux.
+if ($env:OS -ne 'Windows_NT') { exit 0 }
+
 [Console]::InputEncoding  = [System.Text.Encoding]::UTF8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 

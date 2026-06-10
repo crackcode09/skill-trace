@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -ExecutionPolicy Bypass -NonInteractive -File \"$CLAUDE_PLUGIN_ROOT/hooks/scripts/sync-skills.ps1\"",
+            "command": "bash -c 'command -v powershell >/dev/null 2>&1 && powershell -ExecutionPolicy Bypass -NonInteractive -File \"$CLAUDE_PLUGIN_ROOT/hooks/scripts/sync-skills.ps1\"'; exit 0",
             "timeout": 15
           },
           {
