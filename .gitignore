@@ -1,0 +1,5 @@
+viewer/node_modules/
+*.db
+*.log
+*.pid
+.env
