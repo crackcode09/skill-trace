@@ -54,41 +54,32 @@
   <!-- divider -->
   <line x1="40" y1="174" x2="920" y2="174" stroke="#30363d" stroke-width="1"/>
 
-  <!-- stats cards -->
-  <!-- card 1 -->
-  <rect x="40"  y="194" width="207" height="82" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-  <text x="143" y="238"
+  <!-- stats cards — 3 cards, evenly distributed -->
+  <!-- card 1: zero deps -->
+  <rect x="40"  y="194" width="284" height="82" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="182" y="235"
     font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
-    font-size="30" font-weight="700" fill="#58a6ff" text-anchor="middle">3</text>
-  <text x="143" y="258"
+    font-size="22" font-weight="700" fill="#58a6ff" text-anchor="middle">zero deps</text>
+  <text x="182" y="258"
     font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
-    font-size="11" fill="#7d8590" text-anchor="middle">projects indexed</text>
+    font-size="11" fill="#7d8590" text-anchor="middle">no npm install needed</text>
 
-  <!-- card 2 -->
-  <rect x="259" y="194" width="207" height="82" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-  <text x="362" y="238"
-    font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
-    font-size="30" font-weight="700" fill="#58a6ff" text-anchor="middle">7</text>
-  <text x="362" y="258"
-    font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
-    font-size="11" fill="#7d8590" text-anchor="middle">edge cases fixed</text>
-
-  <!-- card 3 -->
-  <rect x="478" y="194" width="207" height="82" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-  <text x="581" y="238"
+  <!-- card 2: viewer port -->
+  <rect x="336" y="194" width="284" height="82" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="478" y="238"
     font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
     font-size="30" font-weight="700" fill="#58a6ff" text-anchor="middle">38888</text>
-  <text x="581" y="258"
+  <text x="478" y="258"
     font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
     font-size="11" fill="#7d8590" text-anchor="middle">viewer port</text>
 
-  <!-- card 4 -->
-  <rect x="697" y="194" width="207" height="82" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-  <text x="800" y="238"
+  <!-- card 3: sync latency -->
+  <rect x="632" y="194" width="284" height="82" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="774" y="238"
     font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
-    font-size="30" font-weight="700" fill="#58a6ff" text-anchor="middle">1</text>
-  <text x="800" y="258"
+    font-size="30" font-weight="700" fill="#58a6ff" text-anchor="middle">&lt;500ms</text>
+  <text x="774" y="258"
     font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
-    font-size="11" fill="#7d8590" text-anchor="middle">session to ship</text>
+    font-size="11" fill="#7d8590" text-anchor="middle">sync latency</text>
 
 </svg>
