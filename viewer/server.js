@@ -38,7 +38,7 @@ function parseMd(content) {
     entries.push({
       title:    rawTitle.trim(),
       date,
-      project:  project.trim(),
+      projects: project.split(',').map(p => p.trim()),
       problem:  extractSection(body, 'Problem'),
       solution: extractSection(body, 'Solution'),
       takeaway: extractSection(body, 'Takeaway'),
@@ -156,7 +156,7 @@ try {
 function searchSkills(q, project) {
   const lower = q.toLowerCase();
   return skills.filter(s => {
-    if (project && s.project !== project) return false;
+    if (project && !s.projects.includes(project)) return false;
     return (
       s.title.toLowerCase().includes(lower) ||
       (s.problem  && s.problem.toLowerCase().includes(lower))  ||
@@ -202,7 +202,7 @@ const server = createServer((req, res) => {
     if (q) {
       results = searchSkills(q, project);
     } else if (project) {
-      results = skills.filter(s => s.project === project);
+      results = skills.filter(s => s.projects.includes(project));
     } else {
       results = skills;
     }

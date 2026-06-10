@@ -598,14 +598,14 @@ async function fetchSkills(q = '', project = '') {
 
 function renderProjects(visibleSkills) {
   const counts = {};
-  for (const s of allSkills) counts[s.project] = (counts[s.project] || 0) + 1;
+  for (const s of allSkills) for (const p of s.projects) counts[p] = (counts[p] || 0) + 1;
   const projects = Object.keys(counts).sort();
 
   const list = document.getElementById('projectList');
   list.innerHTML = '<div class="col-section-label">Projects</div>';
   list.appendChild(makeProjectItem('All', allSkills.length, activeProject === 'All'));
   for (const proj of projects) {
-    const vis = visibleSkills.filter(s => s.project === proj).length;
+    const vis = visibleSkills.filter(s => s.projects.includes(proj)).length;
     list.appendChild(makeProjectItem(proj, vis, activeProject === proj));
   }
 }
@@ -662,7 +662,7 @@ function renderEntries(skills) {
         <div class="entry-title">${esc(s.title)}</div>
         <span class="entry-date">${fmtDate(s.date)}</span>
       </div>
-      ${activeProject === 'All' ? `<span class="entry-proj-tag">${esc(s.project)}</span>` : ''}
+      ${activeProject === 'All' ? `<span class="entry-proj-tag">${esc(s.projects.join(', '))}</span>` : ''}
     `;
     const select = () => selectEntry(s);
     el.addEventListener('click', select);
@@ -696,7 +696,7 @@ function renderDetail(s) {
     <div class="detail-inner">
       <h1 class="detail-title">${esc(s.title)}</h1>
       <div class="detail-badges">
-        <span class="badge">${esc(s.project)}</span>
+        <span class="badge">${esc(s.projects.join(', '))}</span>
         <span class="badge date">${fmtDate(s.date)}</span>
       </div>
       ${sections.map(([type, text]) => makeSection(type, text)).join('')}
@@ -769,7 +769,7 @@ document.getElementById('refreshBtn').addEventListener('click', async () => {
     const q = document.getElementById('search').value.trim();
     if (q) {
       filtered = allSkills.filter(s =>
-        [s.title, s.problem, s.solution, s.takeaway, s.project]
+        [s.title, s.problem, s.solution, s.takeaway, s.projects.join(', ')]
           .some(f => f && f.toLowerCase().includes(q.toLowerCase()))
       );
     }

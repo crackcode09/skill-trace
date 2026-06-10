@@ -186,9 +186,8 @@ try:
             lines = entry.split('\n')
             tagged_header = lines[0].rstrip() + ' <!-- {} -->'.format(project_name)
             rest = lines[1:] if len(lines) > 1 else []
-            attribution = '**Project:** `{}`'.format(project_name)
             body = '\n'.join(rest).lstrip('\n')
-            full_entry = '\n' + tagged_header + '\n\n' + attribution + '\n' + body
+            full_entry = '\n' + tagged_header + '\n\n' + body
             f.write(full_entry)
 except Exception:
     sys.exit(0)

@@ -171,11 +171,9 @@ foreach ($entry in $new_entries) {
     $tagged_header = $lines[0].TrimEnd() + " <!-- $project_name -->"
     $rest_lines    = if ($lines.Length -gt 1) { $lines[1..($lines.Length - 1)] } else { @() }
 
-    # Insert **Project:** line after the header
-    $attribution   = "**Project:** ``$project_name``"
     $body          = $rest_lines -join "`n"
 
-    $full_entry    = "`n" + $tagged_header + "`n`n" + $attribution + "`n" + $body.TrimStart("`n")
+    $full_entry    = "`n" + $tagged_header + "`n`n" + $body.TrimStart("`n")
     Add-Content $global_path $full_entry -Encoding UTF8
 }
 
