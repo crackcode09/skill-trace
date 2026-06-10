@@ -1,41 +1,34 @@
-﻿{
-  "PostToolUse": [
-    {
-      "matcher": "Write",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "powershell -ExecutionPolicy Bypass -NonInteractive -File \"$CLAUDE_PLUGIN_ROOT/hooks/scripts/sync-skills.ps1\"",
-          "timeout": 15
-        }
-      ]
-    },
-    {
-      "matcher": "Edit",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "powershell -ExecutionPolicy Bypass -NonInteractive -File \"$CLAUDE_PLUGIN_ROOT/hooks/scripts/sync-skills.ps1\"",
-          "timeout": 15
-        }
-      ]
-    }
-  ],
-  "SessionStart": [
-    {
-      "matcher": "startup",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "powershell -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File \"$CLAUDE_PLUGIN_ROOT/hooks/scripts/start-viewer.ps1\"",
-          "timeout": 30
-        },
-        {
-          "type": "command",
-          "command": "bash \"$CLAUDE_PLUGIN_ROOT/hooks/scripts/start-viewer.sh\"",
-          "timeout": 30
-        }
-      ]
-    }
-  ]
+{
+  "description": "skill-trace — syncs docs/skills.md to global skills log and auto-starts the viewer",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -NonInteractive -File \"$CLAUDE_PLUGIN_ROOT/hooks/scripts/sync-skills.ps1\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File \"$CLAUDE_PLUGIN_ROOT/hooks/scripts/start-viewer.ps1\"",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PLUGIN_ROOT/hooks/scripts/start-viewer.sh\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
 }
