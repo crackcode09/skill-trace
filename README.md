@@ -45,6 +45,16 @@ PostToolUse hook → sync-skills.ps1 → append to global-skills.md
 
 ---
 
+## `// capture flow`
+
+<div align="center">
+
+![skill-trace capture flow](assets/capture-flow.svg)
+
+</div>
+
+---
+
 ## `// install`
 
 **Option A — Claude Code plugin install (recommended)**

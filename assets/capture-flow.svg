@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" width="900" height="520">
+  <defs>
+    <marker id="ar-hi" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#58a6ff"/>
+    </marker>
+    <marker id="ar-gr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#3fb950"/>
+    </marker>
+    <marker id="ar-am" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#d29922"/>
+    </marker>
+    <marker id="ar-dim" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#484f58"/>
+    </marker>
+    <style>
+      text { font-family: 'Courier New', monospace; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="520" fill="#0d1117" rx="8"/>
+  <rect x="1" y="1" width="898" height="518" fill="none" stroke="#30363d" stroke-width="1" rx="8"/>
+
+  <!-- Title -->
+  <text x="450" y="30" font-size="12" fill="#58a6ff" font-weight="600" text-anchor="middle" letter-spacing="1">// skill capture flow</text>
+
+  <!-- ═══ SESSION START LANE ═══ -->
+  <text x="50" y="58" font-size="9" fill="#484f58" letter-spacing="1.5">SESSION START</text>
+
+  <!-- Node 1: Claude Code starts -->
+  <rect x="50" y="68" width="136" height="46" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="118" y="87" font-size="10" fill="#58a6ff" text-anchor="middle">Claude Code</text>
+  <text x="118" y="103" font-size="10" fill="#58a6ff" text-anchor="middle">session starts</text>
+
+  <!-- → -->
+  <line x1="186" y1="91" x2="222" y2="91" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar-hi)"/>
+
+  <!-- Node 2: SessionStart hook -->
+  <rect x="222" y="68" width="148" height="46" rx="6" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="296" y="87" font-size="10" fill="#58a6ff" text-anchor="middle" font-weight="600">SessionStart hook</text>
+  <text x="296" y="103" font-size="9" fill="#7d8590" text-anchor="middle">start-viewer.ps1 / .sh</text>
+
+  <!-- → -->
+  <line x1="370" y1="91" x2="406" y2="91" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar-hi)"/>
+
+  <!-- Node 3: Port check -->
+  <rect x="406" y="68" width="136" height="46" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="474" y="87" font-size="10" fill="#c9d1d9" text-anchor="middle">Port 38888</text>
+  <text x="474" y="103" font-size="9" fill="#7d8590" text-anchor="middle">HTTP probe check</text>
+
+  <!-- already running dashed branch -->
+  <line x1="542" y1="91" x2="720" y2="91" stroke="#484f58" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ar-dim)"/>
+  <text x="630" y="82" font-size="9" fill="#484f58" text-anchor="middle">already running</text>
+  <rect x="720" y="76" width="98" height="30" rx="5" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="769" y="96" font-size="9" fill="#484f58" text-anchor="middle">skip — already up ✓</text>
+
+  <!-- not running → down -->
+  <text x="474" y="130" font-size="9" fill="#484f58" text-anchor="middle">not running</text>
+  <line x1="474" y1="114" x2="474" y2="148" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ar-gr)"/>
+
+  <!-- Node 4: node viewer/server.js -->
+  <rect x="346" y="148" width="256" height="46" rx="6" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="474" y="167" font-size="10" fill="#3fb950" text-anchor="middle" font-weight="600">node viewer/server.js</text>
+  <text x="474" y="183" font-size="9" fill="#7d8590" text-anchor="middle">parseMd() → in-memory array · :38888 ready</text>
+
+  <!-- ═══ DIVIDER ═══ -->
+  <line x1="50" y1="224" x2="850" y2="224" stroke="#30363d" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="450" y="238" font-size="9" fill="#484f58" text-anchor="middle" letter-spacing="1">DURING SESSION — Claude writes to docs/skills.md</text>
+
+  <!-- ═══ CAPTURE LANE ═══ -->
+
+  <!-- Node 5: Write/Edit tool -->
+  <rect x="50" y="252" width="136" height="46" rx="6" fill="#161b22" stroke="#d29922" stroke-width="1.5"/>
+  <text x="118" y="271" font-size="10" fill="#d29922" text-anchor="middle" font-weight="600">Write / Edit tool</text>
+  <text x="118" y="287" font-size="9" fill="#7d8590" text-anchor="middle">docs/skills.md</text>
+
+  <!-- → -->
+  <line x1="186" y1="275" x2="222" y2="275" stroke="#d29922" stroke-width="1.5" marker-end="url(#ar-am)"/>
+
+  <!-- Node 6: PostToolUse hook -->
+  <rect x="222" y="252" width="148" height="46" rx="6" fill="#161b22" stroke="#d29922" stroke-width="1.5"/>
+  <text x="296" y="271" font-size="10" fill="#d29922" text-anchor="middle" font-weight="600">PostToolUse hook</text>
+  <text x="296" y="287" font-size="9" fill="#7d8590" text-anchor="middle">sync-skills.ps1 / .sh</text>
+
+  <!-- → -->
+  <line x1="370" y1="275" x2="406" y2="275" stroke="#d29922" stroke-width="1.5" marker-end="url(#ar-am)"/>
+
+  <!-- Node 7: global-skills.md -->
+  <rect x="406" y="252" width="160" height="46" rx="6" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="486" y="267" font-size="10" fill="#58a6ff" text-anchor="middle" font-weight="600">~/.claude/</text>
+  <text x="486" y="281" font-size="10" fill="#58a6ff" text-anchor="middle" font-weight="600">global-skills.md</text>
+  <text x="486" y="295" font-size="9" fill="#7d8590" text-anchor="middle">entry appended</text>
+
+  <!-- → -->
+  <line x1="566" y1="275" x2="602" y2="275" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ar-gr)"/>
+
+  <!-- Node 8: fs.watch -->
+  <rect x="602" y="252" width="120" height="46" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="662" y="271" font-size="10" fill="#c9d1d9" text-anchor="middle">fs.watch</text>
+  <text x="662" y="287" font-size="9" fill="#7d8590" text-anchor="middle">500ms debounce</text>
+
+  <!-- → -->
+  <line x1="722" y1="275" x2="758" y2="275" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ar-gr)"/>
+
+  <!-- Node 9: array rebuilt -->
+  <rect x="758" y="252" width="120" height="46" rx="6" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="818" y="271" font-size="10" fill="#3fb950" text-anchor="middle" font-weight="600">array rebuilt</text>
+  <text x="818" y="287" font-size="9" fill="#7d8590" text-anchor="middle">search live &lt;500ms</text>
+
+  <!-- ═══ RESULT ═══ -->
+  <line x1="450" y1="316" x2="450" y2="356" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ar-gr)"/>
+  <!-- curved line from node 9 to result -->
+  <path d="M818,298 Q818,336 450,356" fill="none" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ar-gr)"/>
+  <text x="665" y="325" font-size="9" fill="#484f58" text-anchor="middle">new entry searchable</text>
+
+  <!-- Result box -->
+  <rect x="280" y="356" width="340" height="52" rx="6" fill="#161b22" stroke="#3fb950" stroke-width="2"/>
+  <text x="450" y="378" font-size="12" fill="#3fb950" text-anchor="middle" font-weight="600">localhost:38888</text>
+  <text x="450" y="396" font-size="10" fill="#7d8590" text-anchor="middle">search across all projects · all entries · always fresh</text>
+
+  <!-- ═══ LEGEND ═══ -->
+  <rect x="50" y="434" width="800" height="66" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="450" y="452" font-size="9" fill="#484f58" text-anchor="middle" letter-spacing="1">LEGEND</text>
+
+  <line x1="90" y1="470" x2="120" y2="470" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="132" y="470" font-size="9" fill="#7d8590" dominant-baseline="middle">Session start path</text>
+
+  <line x1="260" y1="470" x2="290" y2="470" stroke="#d29922" stroke-width="1.5"/>
+  <text x="302" y="470" font-size="9" fill="#7d8590" dominant-baseline="middle">Capture path</text>
+
+  <line x1="410" y1="470" x2="440" y2="470" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="452" y="470" font-size="9" fill="#7d8590" dominant-baseline="middle">Sync path</text>
+
+  <line x1="560" y1="470" x2="590" y2="470" stroke="#484f58" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="602" y="470" font-size="9" fill="#7d8590" dominant-baseline="middle">Skip branch</text>
+
+  <text x="450" y="490" font-size="9" fill="#484f58" text-anchor="middle">skill-trace v1.2.0 · crackcode09/skill-trace · MIT</text>
+</svg>
