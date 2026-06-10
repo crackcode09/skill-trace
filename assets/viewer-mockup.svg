@@ -109,88 +109,102 @@
       font-size="10" font-weight="600" letter-spacing="0.8" fill="#484f58">ALL SKILLS</text>
 
     <!-- Entry 1 — selected -->
-    <rect x="168" y="82" width="290" height="66" fill="#1c2128"/>
-    <line x1="168" y1="82" x2="168" y2="148" stroke="#58a6ff" stroke-width="3"/>
-    <line x1="168" y1="148" x2="458" y2="148" stroke="#30363d" stroke-width="1"/>
-    <text x="184" y="103"
+    <rect x="168" y="82" width="290" height="72" fill="#1c2128"/>
+    <line x1="168" y1="82" x2="168" y2="154" stroke="#58a6ff" stroke-width="3"/>
+    <line x1="168" y1="154" x2="458" y2="154" stroke="#30363d" stroke-width="1"/>
+    <!-- Title row: title left, date right -->
+    <text x="184" y="101"
       font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
-      font-size="13" font-weight="500" fill="#e6edf3">HTMX partial detection</text>
-    <text x="184" y="120"
+      font-size="13" font-weight="500" fill="#58a6ff">HTMX partial detection</text>
+    <text x="442" y="101"
+      font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
+      font-size="10" fill="#484f58" text-anchor="end">2026-06-10</text>
+    <!-- Badge below title, left -->
+    <rect x="184" y="108" width="34" height="14" rx="4" fill="rgba(63,185,80,0.1)" stroke="rgba(63,185,80,0.25)" stroke-width="1"/>
+    <text x="201" y="119"
+      font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
+      font-size="9" fill="#3fb950" text-anchor="middle">rma</text>
+    <!-- Description snippet -->
+    <text x="184" y="134"
       font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
       font-size="11" fill="#7d8590">Routes serving both full pages and HTMX</text>
-    <text x="184" y="135"
+    <text x="184" y="148"
       font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
       font-size="11" fill="#7d8590">partials need header detection.</text>
-    <rect x="352" y="94" width="70" height="15" rx="4" fill="rgba(63,185,80,0.1)" stroke="rgba(63,185,80,0.25)" stroke-width="1"/>
-    <text x="387" y="105"
-      font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
-      font-size="9" fill="#3fb950" text-anchor="middle">rma</text>
-    <text x="184" y="142"
-      font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
-      font-size="10" fill="#484f58">2026-06-10</text>
 
     <!-- Entry 2 -->
-    <rect x="168" y="148" width="290" height="64" fill="transparent"/>
-    <line x1="168" y1="212" x2="458" y2="212" stroke="#21262d" stroke-width="1"/>
-    <text x="184" y="169"
+    <rect x="168" y="154" width="290" height="68" fill="transparent"/>
+    <line x1="168" y1="222" x2="458" y2="222" stroke="#21262d" stroke-width="1"/>
+    <!-- Title row: title left, date right -->
+    <text x="184" y="173"
       font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
       font-size="13" font-weight="500" fill="#c9d1d9">Zero-dep viewer server</text>
-    <text x="184" y="186"
+    <text x="442" y="173"
+      font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
+      font-size="10" fill="#484f58" text-anchor="end">2026-06-10</text>
+    <!-- Badge below title -->
+    <rect x="184" y="180" width="58" height="14" rx="4" fill="rgba(210,153,34,0.1)" stroke="rgba(210,153,34,0.25)" stroke-width="1"/>
+    <text x="213" y="191"
+      font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
+      font-size="9" fill="#d29922" text-anchor="middle">skill-trace</text>
+    <!-- Description snippet -->
+    <text x="184" y="206"
       font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
       font-size="11" fill="#7d8590">better-sqlite3 fails on Node 22 and</text>
-    <text x="184" y="200"
+    <text x="184" y="219"
       font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
       font-size="11" fill="#7d8590">blocks Mac users entirely.</text>
-    <rect x="330" y="160" width="92" height="15" rx="4" fill="rgba(210,153,34,0.1)" stroke="rgba(210,153,34,0.25)" stroke-width="1"/>
-    <text x="376" y="171"
-      font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
-      font-size="9" fill="#d29922" text-anchor="middle">skill-trace</text>
 
     <!-- Entry 3 -->
-    <rect x="168" y="212" width="290" height="64" fill="transparent"/>
-    <line x1="168" y1="276" x2="458" y2="276" stroke="#21262d" stroke-width="1"/>
-    <text x="184" y="233"
+    <rect x="168" y="222" width="290" height="68" fill="transparent"/>
+    <line x1="168" y1="290" x2="458" y2="290" stroke="#21262d" stroke-width="1"/>
+    <text x="184" y="241"
       font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
       font-size="13" font-weight="500" fill="#c9d1d9">A2 overlay merge pattern</text>
-    <text x="184" y="250"
-      font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
-      font-size="11" fill="#7d8590">SyteLine is read-only. Overlay rows</text>
-    <text x="184" y="264"
-      font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
-      font-size="11" fill="#7d8590">created lazily on first QA action.</text>
-    <rect x="352" y="224" width="70" height="15" rx="4" fill="rgba(63,185,80,0.1)" stroke="rgba(63,185,80,0.25)" stroke-width="1"/>
-    <text x="387" y="235"
+    <text x="442" y="241"
+      font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
+      font-size="10" fill="#484f58" text-anchor="end">2026-06-10</text>
+    <rect x="184" y="248" width="34" height="14" rx="4" fill="rgba(63,185,80,0.1)" stroke="rgba(63,185,80,0.25)" stroke-width="1"/>
+    <text x="201" y="259"
       font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
       font-size="9" fill="#3fb950" text-anchor="middle">rma</text>
+    <text x="184" y="274"
+      font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
+      font-size="11" fill="#7d8590">SyteLine is read-only. Overlay rows</text>
+    <text x="184" y="287"
+      font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
+      font-size="11" fill="#7d8590">created lazily on first QA action.</text>
 
     <!-- Entry 4 -->
-    <rect x="168" y="276" width="290" height="60" fill="transparent"/>
-    <line x1="168" y1="336" x2="458" y2="336" stroke="#21262d" stroke-width="1"/>
-    <text x="184" y="296"
+    <rect x="168" y="290" width="290" height="66" fill="transparent"/>
+    <line x1="168" y1="356" x2="458" y2="356" stroke="#21262d" stroke-width="1"/>
+    <text x="184" y="309"
       font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
       font-size="13" font-weight="500" fill="#c9d1d9">fs.watch debounce pattern</text>
-    <text x="184" y="313"
-      font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
-      font-size="11" fill="#7d8590">fs.watch fires multiple events per</text>
-    <text x="184" y="327"
-      font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
-      font-size="11" fill="#7d8590">save. Debounce 500ms collapses them.</text>
-    <rect x="330" y="287" width="92" height="15" rx="4" fill="rgba(210,153,34,0.1)" stroke="rgba(210,153,34,0.25)" stroke-width="1"/>
-    <text x="376" y="298"
+    <text x="442" y="309"
+      font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
+      font-size="10" fill="#484f58" text-anchor="end">2026-06-10</text>
+    <rect x="184" y="316" width="58" height="14" rx="4" fill="rgba(210,153,34,0.1)" stroke="rgba(210,153,34,0.25)" stroke-width="1"/>
+    <text x="213" y="327"
       font-family="ui-monospace,Consolas,'Liberation Mono',monospace"
       font-size="9" fill="#d29922" text-anchor="middle">skill-trace</text>
+    <text x="184" y="342"
+      font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
+      font-size="11" fill="#7d8590">fs.watch fires multiple events per</text>
+    <text x="184" y="355"
+      font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
+      font-size="11" fill="#7d8590">save. Debounce 500ms collapses them.</text>
 
     <!-- Faded entries below -->
-    <rect x="168" y="336" width="290" height="184" fill="transparent"/>
-    <text x="184" y="358"
+    <text x="184" y="376"
       font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
       font-size="13" font-weight="500" fill="#484f58">Better-sqlite3 native compile…</text>
-    <line x1="168" y1="372" x2="458" y2="372" stroke="#21262d" stroke-width="1"/>
-    <text x="184" y="394"
+    <line x1="168" y1="390" x2="458" y2="390" stroke="#21262d" stroke-width="1"/>
+    <text x="184" y="410"
       font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
       font-size="13" font-weight="500" fill="#484f58">HTMX hx-request guard pattern</text>
-    <line x1="168" y1="408" x2="458" y2="408" stroke="#21262d" stroke-width="1"/>
-    <text x="184" y="430"
+    <line x1="168" y1="424" x2="458" y2="424" stroke="#21262d" stroke-width="1"/>
+    <text x="184" y="444"
       font-family="ui-sans-serif,system-ui,-apple-system,sans-serif"
       font-size="13" font-weight="500" fill="#484f58">SQLite WAL mode for concurrent…</text>
 
