@@ -1,27 +1,6 @@
 <div align="center">
 
-<br>
-
-```
-┌─────────────────────────────────────────────┐
-│  ◈  skill-trace                             │
-│     cross-project knowledge for Claude Code │
-└─────────────────────────────────────────────┘
-```
-
-**Turn scattered per-project lessons into a searchable, always-available knowledge base.**
-
-Every `docs/skills.md` entry you write in any project flows automatically into a global log — searchable from a local web viewer that's already running before your first keystroke.
-
-<br>
-
-![version](https://img.shields.io/badge/version-1.2.0-58a6ff?style=flat-square&labelColor=161b22)
-![license](https://img.shields.io/badge/license-MIT-3fb950?style=flat-square&labelColor=161b22)
-![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-7d8590?style=flat-square&labelColor=161b22)
-![deps](https://img.shields.io/badge/dependencies-zero-d29922?style=flat-square&labelColor=161b22)
-![port](https://img.shields.io/badge/viewer-:38888-bc8cff?style=flat-square&labelColor=161b22)
-
-<br>
+![skill-trace](assets/banner.svg)
 
 </div>
 
