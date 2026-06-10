@@ -1,95 +1,241 @@
-# global-skills — Claude Code Plugin
+<div align="center">
 
-Automatically syncs skill entries from any project's `docs/skills.md` to a central `~/.claude/global-skills.md` log, with cross-project attribution. Includes a local web viewer for searching and browsing your institutional knowledge base.
+<br>
 
-## What it does
-
-- **PostToolUse hook** — fires after every `Write` or `Edit` to any `docs/skills.md`. Extracts `## [YYYY-MM-DD]` entries and appends them to `~/.claude/global-skills.md` with a `**Project:** name` attribution line.
-- **Web viewer** — starts at session begin on `http://localhost:38888`. 3-column split-pane UI (projects | entries | detail). Full-text search powered by SQLite FTS5.
-- **`/gskills` skill** — search the global log from within Claude Code.
-
-## Install
-
-```bash
-claude plugin install github:YOUR_USERNAME/global-skills
+```
+┌─────────────────────────────────────────────┐
+│  ◈  skill-trace                             │
+│     cross-project knowledge for Claude Code │
+└─────────────────────────────────────────────┘
 ```
 
-Then add the `SessionStart` hook to your `~/.claude/settings.json` (see **Manual hook wiring** below).
+**Turn scattered per-project lessons into a searchable, always-available knowledge base.**
 
-## Manual hook wiring
+Every `docs/skills.md` entry you write in any project flows automatically into a global log — searchable from a local web viewer that's already running before your first keystroke.
 
-The `PostToolUse` hooks run automatically via the plugin system. The `SessionStart` hook for the viewer requires a one-time manual entry in `~/.claude/settings.json`:
+<br>
+
+![version](https://img.shields.io/badge/version-1.2.0-58a6ff?style=flat-square&labelColor=161b22)
+![license](https://img.shields.io/badge/license-MIT-3fb950?style=flat-square&labelColor=161b22)
+![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-7d8590?style=flat-square&labelColor=161b22)
+![deps](https://img.shields.io/badge/dependencies-zero-d29922?style=flat-square&labelColor=161b22)
+![port](https://img.shields.io/badge/viewer-:38888-bc8cff?style=flat-square&labelColor=161b22)
+
+<br>
+
+</div>
+
+---
+
+## `// the problem`
+
+Claude Code developers write valuable lessons into `docs/skills.md` files — but those entries stay **siloed per project**. When starting a new project or hitting a problem you've solved before, there's no way to search across all your accumulated knowledge. Lessons written in one project are invisible when working in another.
+
+## `// the solution`
+
+A **SessionStart hook** automatically launches a local web server on port `38888`. On startup, it parses `~/.claude/global-skills.md` into an **in-memory search index**. A **PostToolUse hook** syncs new entries from any project into that global file the moment you write them.
+
+The viewer is already running before the first keystroke of the session — zero friction.
+
+---
+
+## `// architecture`
+
+```
+Claude Code session starts
+      │
+      ▼
+SessionStart hook → start-viewer.ps1 / start-viewer.sh
+      │
+      ├── Port 38888 occupied + HTTP probe passes → skip (already running)
+      │
+      └── node viewer/server.js
+              │
+              ├── parseMd()  →  ~/.claude/global-skills.md  →  in-memory array
+              ├── fs.watch   →  auto-resync on file change (500ms debounce)
+              ├── PID file   →  ~/.claude/global-skills.pid
+              └── :38888
+                      ├── GET /             →  3-column viewer UI
+                      ├── GET /api/skills   →  substring search across all fields
+                      └── POST /api/sync    →  manual re-parse
+
+On any Write/Edit to docs/skills.md:
+PostToolUse hook → sync-skills.ps1 → append to global-skills.md
+                                    → fs.watch picks up change → array resyncs
+```
+
+---
+
+## `// install`
+
+**1. Clone into your Claude plugins directory**
+
+```bash
+# Windows
+git clone https://github.com/crackcode09/skill-trace "$env:USERPROFILE\.claude\skills\skill-trace"
+
+# macOS / Linux
+git clone https://github.com/crackcode09/skill-trace ~/.claude/skills/skill-trace
+```
+
+**2. Add the hooks to `~/.claude/settings.json`**
 
 ```json
 {
   "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [{
+          "type": "command",
+          "command": "powershell -ExecutionPolicy Bypass -NonInteractive -File \"C:\\Users\\YOUR_NAME\\.claude\\skills\\skill-trace\\hooks\\scripts\\sync-skills.ps1\"",
+          "timeout": 15
+        }]
+      }
+    ],
     "SessionStart": [
       {
         "matcher": "startup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "powershell -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File \"C:\\Users\\USERNAME\\.claude\\skills\\global-skills\\hooks\\scripts\\start-viewer.ps1\"",
-            "timeout": 30
-          }
-        ]
+        "hooks": [{
+          "type": "command",
+          "command": "powershell -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File \"C:\\Users\\YOUR_NAME\\.claude\\skills\\skill-trace\\hooks\\scripts\\start-viewer.ps1\"",
+          "timeout": 30
+        }]
       }
     ]
   }
 }
 ```
 
-Replace `USERNAME` with your Windows username.
+> Replace `YOUR_NAME` with your Windows username. On macOS/Linux, use `start-viewer.sh` instead.
 
-## Usage
+**3. Start a new Claude Code session**
 
-```bash
-/gskills                              # 10 most recent entries
-/gskills sql server                   # search by keyword
-/gskills --project rma_process_automate
-/gskills --recent 20
-```
+The viewer starts automatically. Open `http://localhost:38888` to confirm.
 
-Web viewer: open `http://localhost:38888` in any browser after starting a Claude Code session.
+---
 
-## How skill entries are captured
+## `// usage`
 
-In any project, write entries to `docs/skills.md` using this format:
+Add entries to `docs/skills.md` in any project:
 
 ```markdown
-## [YYYY-MM-DD] — Skill Title
+## 2026-06-10 — HTMX partial detection
 
-**Problem:** What went wrong or what challenge was faced.
+**Problem:** Routes that serve both full pages and HTMX partials need to
+detect which is being requested.
 
-**Solution:** What was done to solve it.
+**Solution:** Check the `hx-request` header — HTMX sets it on every
+partial request.
 
-**Takeaway:** The reusable lesson.
+**Takeaway:** Always check `req.headers['hx-request']` before rendering
+a full layout vs. a fragment.
 ```
 
-The hook fires automatically and appends the entry to the global log.
+The PostToolUse hook fires on every save, appends to `~/.claude/global-skills.md`, and the viewer resyncs within 500ms. Search with `/gskills` from inside Claude Code, or open `http://localhost:38888` in a browser.
 
-## Platform support
+---
 
-- **Windows (PowerShell):** fully supported — hooks and viewer are `.ps1` scripts
-- **Mac/Linux:** `sync-skills.ps1` is Windows-only in v1.1.0. Shell script equivalents are welcome as community contributions.
-
-## Files
+## `// viewer`
 
 ```
-global-skills/
+┌──────────────┬─────────────────────────┬──────────────────────────┐
+│  Projects    │  Entries                │  Detail                  │
+│              │                         │                          │
+│  ● All       │  HTMX partial detect.   │  HTMX partial detection  │
+│    rma       │  2026-06-10 · rma       │  ─────────────────────── │
+│    skill-tr… │                         │  Problem                 │
+│              │  Zero-dep server        │  Routes that serve...    │
+│              │  2026-06-10 · skill-t.  │                          │
+│              │                         │  Solution                │
+│              │  ...                    │  Check hx-request...     │
+└──────────────┴─────────────────────────┴──────────────────────────┘
+```
+
+Search across title, problem, solution, and takeaway. Filter by project. Click any entry for the full detail pane.
+
+---
+
+## `// tech stack`
+
+| Layer | Technology | Detail |
+|-------|-----------|--------|
+| Server | Node.js built-ins only | `http`, `fs`, `path`, `os` — zero npm dependencies |
+| Search | In-memory `Array.filter()` | Substring match, fast enough for < 1000 entries |
+| UI | Vanilla JS + CSS | Single HTML file, no framework, no build step |
+| Live sync | `fs.watch` + 500ms debounce | Auto-resyncs when `global-skills.md` changes |
+| Hooks | PowerShell + Bash | Windows: `.ps1` · macOS/Linux: `.sh` |
+| Storage | Flat Markdown | `~/.claude/global-skills.md` — readable without the app |
+
+---
+
+## `// key decisions`
+
+<details>
+<summary><strong>D1 — Flat MD as canonical source, not a database</strong></summary>
+<br>
+The MD file is readable without the app. The in-memory index is always rebuildable from it. Source of truth is never a binary file.
+<br><br>
+</details>
+
+<details>
+<summary><strong>D2 — Zero npm dependencies</strong></summary>
+<br>
+v1.1.0 used <code>better-sqlite3</code> with FTS5 — but native binary compilation failed on Node 22 and blocked Mac users entirely. v1.2.0 dropped SQLite completely. <code>Array.filter()</code> over an in-memory JS array is sufficient for &lt; 1000 entries and works on every platform without a build step.
+<br><br>
+</details>
+
+<details>
+<summary><strong>D3 — Fixed port 38888</strong></summary>
+<br>
+Single-user dev machine. A fixed port means a fixed URL you can bookmark. Dynamic ports would require port discovery on every session start.
+<br><br>
+</details>
+
+<details>
+<summary><strong>D4 — HTTP probe before skipping start</strong></summary>
+<br>
+<code>netstat</code> shows TIME_WAIT connections that look occupied but aren't. Probing <code>/api/skills</code> confirms it's actually our server — not a leftover socket from a crashed process.
+<br><br>
+</details>
+
+<details>
+<summary><strong>D5 — Viewer ships first, in-session injection later</strong></summary>
+<br>
+The viewer proves value before investing in the harder PreToolUse context-injection feature. Get community usage data before building deeper.
+<br><br>
+</details>
+
+---
+
+## `// roadmap`
+
+| Version | Feature | Status |
+|---------|---------|--------|
+| v1.2.0 | Zero-dep server, Mac/Linux support, skill-trace rename | ✅ shipped |
+| v1.3.0 | PreToolUse hook — auto-inject relevant skills into Claude's context | planned |
+| v2.0.0 | Team sync — shared repo or API backend, multi-developer | planned |
+
+---
+
+## `// files`
+
+```
+skill-trace/
 ├── viewer/
-│   ├── server.js          # Node.js HTTP server (port 38888)
-│   ├── package.json       # better-sqlite3 dependency
+│   ├── server.js          # Node.js HTTP server (port 38888) — zero deps
+│   ├── package.json       # dependencies: {}
 │   └── public/
 │       └── index.html     # 3-column viewer UI
 ├── hooks/
 │   ├── hooks.json
 │   └── scripts/
-│       ├── sync-skills.ps1    # PostToolUse: MD sync
-│       └── start-viewer.ps1   # SessionStart: viewer startup
+│       ├── sync-skills.ps1    # PostToolUse: append to global-skills.md
+│       ├── start-viewer.ps1   # SessionStart: Windows viewer startup
+│       └── start-viewer.sh    # SessionStart: macOS/Linux viewer startup
 ├── skills/
 │   └── gskills/
-│       └── SKILL.md       # /gskills command
+│       └── SKILL.md       # /gskills slash command
 ├── .claude-plugin/
 │   └── plugin.json
 ├── LICENSE
@@ -97,6 +243,29 @@ global-skills/
 └── README.md
 ```
 
-## License
+---
 
-MIT — see [LICENSE](LICENSE).
+## `// contributing`
+
+The codebase is intentionally simple — `viewer/server.js` is ~110 lines with no dependencies. A new contributor can read the whole server in 5 minutes.
+
+1. Fork the repo
+2. Add your entry format support, search improvements, or platform-specific hook scripts
+3. Test: `node viewer/server.js` — verify `GET /api/skills` returns entries
+4. Open a PR
+
+---
+
+## `// license`
+
+MIT — see [LICENSE](LICENSE)
+
+---
+
+<div align="center">
+
+```
+skill-trace v1.2.0 · 2026-06-10 · MIT
+```
+
+</div>
