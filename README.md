@@ -126,19 +126,11 @@ The PostToolUse hook fires on every save, appends to `~/.claude/global-skills.md
 
 ## `// viewer`
 
-```
-┌──────────────┬─────────────────────────┬──────────────────────────┐
-│  Projects    │  Entries                │  Detail                  │
-│              │                         │                          │
-│  ● All       │  HTMX partial detect.   │  HTMX partial detection  │
-│    rma       │  2026-06-10 · rma       │  ─────────────────────── │
-│    skill-tr… │                         │  Problem                 │
-│              │  Zero-dep server        │  Routes that serve...    │
-│              │  2026-06-10 · skill-t.  │                          │
-│              │                         │  Solution                │
-│              │  ...                    │  Check hx-request...     │
-└──────────────┴─────────────────────────┴──────────────────────────┘
-```
+<div align="center">
+
+![skill-trace viewer](assets/viewer-mockup.svg)
+
+</div>
 
 Search across title, problem, solution, and takeaway. Filter by project. Click any entry for the full detail pane.
 
