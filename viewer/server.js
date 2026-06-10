@@ -1,39 +1,18 @@
 'use strict';
 
 const { createServer } = require('http');
-const { readFileSync, existsSync } = require('fs');
+const { readFileSync, existsSync, watch, writeFileSync, unlinkSync } = require('fs');
 const { join } = require('path');
 const { homedir } = require('os');
-const Database = require('better-sqlite3');
 
 const HOME      = homedir();
-const DB_PATH   = join(HOME, '.claude', 'global-skills.db');
 const MD_PATH   = join(HOME, '.claude', 'global-skills.md');
+const PID_PATH  = join(HOME, '.claude', 'global-skills.pid');
 const PORT      = parseInt(process.env.GLOBAL_SKILLS_PORT || '38888', 10);
 const HTML_PATH = join(__dirname, 'public', 'index.html');
 
-// ── DB setup ──────────────────────────────────────────────────────────────────
-
-const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS skills (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    title     TEXT NOT NULL,
-    date      TEXT NOT NULL,
-    project   TEXT NOT NULL,
-    problem   TEXT,
-    solution  TEXT,
-    takeaway  TEXT,
-    raw       TEXT NOT NULL,
-    synced_at TEXT NOT NULL
-  );
-  CREATE VIRTUAL TABLE IF NOT EXISTS skills_fts USING fts5(
-    title, project, problem, solution, takeaway,
-    content=skills, content_rowid=id
-  );
-`);
+// In-memory store — rebuilt from MD on startup and on every file change
+let skills = [];
 
 // ── MD parser ─────────────────────────────────────────────────────────────────
 
@@ -43,12 +22,15 @@ function extractSection(body, label) {
   return m ? m[1].trim() : null;
 }
 
+const MD_HEADER_RE = /^## (\[?\d{4}-\d{2}-\d{2}\]?)/;
+
 function parseMd(content) {
   const entries = [];
-  const blocks = content.split(/(?=^## \[)/m).filter(b => /^## \[/.test(b.trim()));
+  const blocks = content.split(/(?=^## (?:\[?\d{4}-\d{2}-\d{2}\]?))/m)
+    .filter(b => MD_HEADER_RE.test(b.trim()));
   for (const block of blocks) {
     const firstLine = block.split('\n')[0];
-    const m = firstLine.match(/^## \[(\d{4}-\d{2}-\d{2})\] — (.+?)(?:\s+<!--\s*(.+?)\s*-->)?\s*$/);
+    const m = firstLine.match(/^## \[?(\d{4}-\d{2}-\d{2})\]? — (.+?)(?:\s+<!--\s*(.+?)\s*-->)?\s*$/);
     if (!m) continue;
     const [, date, rawTitle, project = 'unknown'] = m;
     const body = block.split('\n').slice(1).join('\n');
@@ -59,68 +41,56 @@ function parseMd(content) {
       problem:  extractSection(body, 'Problem'),
       solution: extractSection(body, 'Solution'),
       takeaway: extractSection(body, 'Takeaway'),
-      raw:      block.trim(),
     });
   }
   return entries;
 }
 
-// ── MD → DB sync ──────────────────────────────────────────────────────────────
+// ── Sync: rebuild in-memory store from MD ────────────────────────────────────
 
-function syncMdToDb() {
+function sync() {
   if (!existsSync(MD_PATH)) {
-    console.log('[global-skills] global-skills.md not found — starting with empty DB');
+    skills = [];
+    console.log('[global-skills] global-skills.md not found — empty store');
     return;
   }
-  const content = readFileSync(MD_PATH, 'utf8');
-  const entries = parseMd(content);
-
-  const check  = db.prepare('SELECT id FROM skills WHERE title = ? AND project = ?');
-  const insert = db.prepare(
-    'INSERT INTO skills (title,date,project,problem,solution,takeaway,raw,synced_at) VALUES (?,?,?,?,?,?,?,?)'
-  );
-  const insFts = db.prepare(
-    'INSERT INTO skills_fts(rowid,title,project,problem,solution,takeaway) VALUES (?,?,?,?,?,?)'
-  );
-
-  const sync = db.transaction((rows) => {
-    let added = 0;
-    for (const e of rows) {
-      if (check.get(e.title, e.project)) continue;
-      const r = insert.run(
-        e.title, e.date, e.project,
-        e.problem, e.solution, e.takeaway,
-        e.raw, new Date().toISOString()
-      );
-      insFts.run(r.lastInsertRowid, e.title, e.project,
-        e.problem || '', e.solution || '', e.takeaway || '');
-      added++;
-    }
-    return added;
-  });
-
-  const added = sync(entries);
-  console.log(`[global-skills] sync complete — ${added} new entries added (${entries.length} total in MD)`);
+  const entries = parseMd(readFileSync(MD_PATH, 'utf8'));
+  entries.sort((a, b) => b.date.localeCompare(a.date));
+  skills = entries.map((e, i) => ({ id: i + 1, ...e }));
+  console.log(`[global-skills] synced — ${skills.length} entries`);
 }
 
-syncMdToDb();
+sync();
+
+// ── Live watch: re-sync when MD changes ──────────────────────────────────────
+
+if (existsSync(MD_PATH)) {
+  let debounce = null;
+  watch(MD_PATH, () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => {
+      console.log('[global-skills] MD changed — resyncing');
+      sync();
+    }, 500);
+  });
+}
+
+// ── Search: case-insensitive substring across all text fields ─────────────────
+
+function searchSkills(q, project) {
+  const lower = q.toLowerCase();
+  return skills.filter(s => {
+    if (project && s.project !== project) return false;
+    return (
+      s.title.toLowerCase().includes(lower) ||
+      (s.problem  && s.problem.toLowerCase().includes(lower))  ||
+      (s.solution && s.solution.toLowerCase().includes(lower)) ||
+      (s.takeaway && s.takeaway.toLowerCase().includes(lower))
+    );
+  });
+}
 
 // ── HTTP server ───────────────────────────────────────────────────────────────
-
-const stmtAll        = db.prepare('SELECT * FROM skills ORDER BY date DESC');
-const stmtByProject  = db.prepare('SELECT * FROM skills WHERE project = ? ORDER BY date DESC');
-const stmtSearch     = db.prepare(`
-  SELECT s.* FROM skills_fts f
-  JOIN skills s ON s.id = f.rowid
-  WHERE skills_fts MATCH ?
-  ORDER BY rank
-`);
-const stmtSearchProj = db.prepare(`
-  SELECT s.* FROM skills_fts f
-  JOIN skills s ON s.id = f.rowid
-  WHERE skills_fts MATCH ? AND s.project = ?
-  ORDER BY rank
-`);
 
 const server = createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
@@ -136,23 +106,30 @@ const server = createServer((req, res) => {
     }
   }
 
+  if (url.pathname === '/api/sync') {
+    sync();
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify({ ok: true, count: skills.length }));
+  }
+
   if (url.pathname === '/api/skills') {
     const q       = url.searchParams.get('q') || '';
     const project = url.searchParams.get('project') || '';
-    let rows;
-    try {
-      if (q && project)  rows = stmtSearchProj.all(q, project);
-      else if (q)        rows = stmtSearch.all(q);
-      else if (project)  rows = stmtByProject.all(project);
-      else               rows = stmtAll.all();
-    } catch {
-      rows = [];
+    const limit   = Math.min(parseInt(url.searchParams.get('limit') || '100', 10), 500);
+    const offset  = parseInt(url.searchParams.get('offset') || '0', 10);
+
+    let results;
+    if (q) {
+      results = searchSkills(q, project);
+    } else if (project) {
+      results = skills.filter(s => s.project === project);
+    } else {
+      results = skills;
     }
-    res.writeHead(200, {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-    });
-    return res.end(JSON.stringify(rows));
+
+    results = results.slice(offset, offset + limit);
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify(results));
   }
 
   res.writeHead(404);
@@ -161,4 +138,12 @@ const server = createServer((req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`[global-skills] viewer running at http://localhost:${PORT}`);
+  try { writeFileSync(PID_PATH, String(process.pid)); } catch {}
 });
+
+function cleanup() {
+  try { unlinkSync(PID_PATH); } catch {}
+  process.exit(0);
+}
+process.on('SIGTERM', cleanup);
+process.on('SIGINT', cleanup);

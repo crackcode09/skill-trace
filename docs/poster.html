@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>skill-trace — Development Story</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg:       #0d1117;
+  --surface:  #161b22;
+  --surface2: #1c2128;
+  --border:   #30363d;
+  --text:     #e6edf3;
+  --body:     #c9d1d9;
+  --muted:    #7d8590;
+  --faint:    #484f58;
+  --accent:   #58a6ff;
+  --green:    #3fb950;
+  --amber:    #d29922;
+  --red:      #f85149;
+  --purple:   #bc8cff;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--body);
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 48px 32px 80px;
+  max-width: 960px;
+  margin: 0 auto;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 56px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+.header-left { flex: 1; }
+.eyebrow {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: .06em;
+  margin-bottom: 10px;
+  font-family: 'JetBrains Mono', monospace;
+}
+h1 {
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 14px;
+}
+h1 span { color: var(--accent); }
+.tagline {
+  font-size: 16px;
+  color: var(--muted);
+  max-width: 480px;
+  line-height: 1.5;
+}
+.meta-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+.pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.pill.accent { border-color: rgba(88,166,255,.3); color: var(--accent); background: rgba(88,166,255,.07); }
+
+/* ── Section titles ── */
+.section { margin-bottom: 48px; }
+.section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--faint);
+  letter-spacing: .08em;
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Problem / Solution ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px 22px;
+}
+.card-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 10px;
+}
+.card-label.red   { color: var(--red); }
+.card-label.green { color: var(--green); }
+.card-label.amber { color: var(--amber); }
+.card-label.blue  { color: var(--accent); }
+.card-label.purple { color: var(--purple); }
+.card p { font-size: 13px; color: var(--body); line-height: 1.6; }
+
+/* ── Architecture diagram ── */
+.arch {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--body);
+  line-height: 1.8;
+  overflow-x: auto;
+  white-space: pre;
+}
+.arch .dim   { color: var(--faint); }
+.arch .hi    { color: var(--accent); }
+.arch .gr    { color: var(--green); }
+.arch .am    { color: var(--amber); }
+
+/* ── Timeline ── */
+.timeline { display: flex; flex-direction: column; gap: 0; }
+.tl-item {
+  display: flex;
+  gap: 20px;
+  position: relative;
+}
+.tl-item:not(:last-child) .tl-line { flex: 1; }
+.tl-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 32px;
+  flex-shrink: 0;
+}
+.tl-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.tl-dot.green  { background: var(--green); }
+.tl-dot.amber  { background: var(--amber); }
+.tl-dot.purple { background: var(--purple); }
+.tl-connector {
+  width: 1px;
+  flex: 1;
+  background: var(--border);
+  margin: 4px 0;
+  min-height: 24px;
+}
+.tl-right {
+  padding-bottom: 28px;
+  flex: 1;
+}
+.tl-label {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.tl-label.green  { color: var(--green); }
+.tl-label.amber  { color: var(--amber); }
+.tl-label.purple { color: var(--purple); }
+.tl-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.tl-body  { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+/* ── Stack grid ── */
+.stack-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.stack-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.stack-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.stack-badge.node   { background: rgba(63,185,80,.12); color: var(--green); border: 1px solid rgba(63,185,80,.2); }
+.stack-badge.sqlite { background: rgba(88,166,255,.1); color: var(--accent); border: 1px solid rgba(88,166,255,.2); }
+.stack-badge.html   { background: rgba(210,153,34,.1); color: var(--amber); border: 1px solid rgba(210,153,34,.2); }
+.stack-badge.ps     { background: rgba(188,140,255,.1); color: var(--purple); border: 1px solid rgba(188,140,255,.2); }
+.stack-info { flex: 1; min-width: 0; }
+.stack-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.stack-desc { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+/* ── Decisions ── */
+.decisions { display: flex; flex-direction: column; gap: 12px; }
+.decision {
+  display: flex;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  align-items: flex-start;
+}
+.decision-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--faint);
+  flex-shrink: 0;
+  padding-top: 2px;
+  width: 20px;
+}
+.decision-q { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.decision-a { font-size: 13px; color: var(--muted); }
+.decision-a strong { color: var(--accent); font-weight: 500; }
+
+/* ── Stats row ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 48px;
+}
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  text-align: center;
+}
+.stat-num {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-label { font-size: 11px; color: var(--muted); }
+
+/* ── Footer ── */
+.footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.footer-left { font-size: 12px; color: var(--faint); font-family: 'JetBrains Mono', monospace; }
+.footer-right { font-size: 12px; color: var(--faint); }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <div class="header-left">
+    <div class="eyebrow">// development story</div>
+    <h1><span>skill-trace</span></h1>
+    <p class="tagline">A Claude Code plugin that turns scattered per-project lessons into a searchable, always-available knowledge base.</p>
+  </div>
+  <div class="meta-pills">
+    <span class="pill accent">v1.1.0</span>
+    <span class="pill">2026-06-10</span>
+    <span class="pill">Nidhin Dileepkumar</span>
+    <span class="pill">MIT License</span>
+  </div>
+</div>
+
+<!-- ── Stats ── -->
+<div class="stats-row">
+  <div class="stat"><div class="stat-num">3</div><div class="stat-label">projects indexed</div></div>
+  <div class="stat"><div class="stat-num">7</div><div class="stat-label">edge cases fixed</div></div>
+  <div class="stat"><div class="stat-num">38888</div><div class="stat-label">viewer port</div></div>
+  <div class="stat"><div class="stat-num">1</div><div class="stat-label">session to ship</div></div>
+</div>
+
+<!-- ── Problem / Solution ── -->
+<div class="section">
+  <div class="section-title">01 &nbsp; PROBLEM &amp; SOLUTION</div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-label red">PROBLEM</div>
+      <p>Claude Code developers write valuable lessons into <code>docs/skills.md</code> files — but those entries stay siloed per project. When starting a new project or hitting a problem you have solved before, there is no way to search across all your accumulated knowledge. Lessons written in the RMA project are invisible when working on the CRM project.</p>
+    </div>
+    <div class="card">
+      <div class="card-label green">SOLUTION</div>
+      <p>A SessionStart hook automatically launches a local web server on port 38888. On startup, it parses <code>~/.claude/global-skills.md</code> into a SQLite FTS5 index. A PostToolUse hook syncs new entries from any project into that global file. The viewer is already running before the first keystroke of the session — zero friction.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── Architecture ── -->
+<div class="section">
+  <div class="section-title">02 &nbsp; ARCHITECTURE</div>
+  <div class="arch"><span class="dim">Claude Code session starts</span>
+        │
+        ▼
+<span class="hi">SessionStart hook</span> → start-viewer.ps1
+        │
+        ├── Port 38888 occupied + HTTP probe passes → skip (already running)
+        │
+        └── <span class="gr">node viewer/server.js</span>
+                │
+                ├── parseMd()  →  <span class="hi">~/.claude/global-skills.md</span>  →  SQLite FTS5
+                ├── fs.watch   →  auto-resync on file change (500ms debounce)
+                ├── PID file   →  <span class="dim">~/.claude/global-skills.pid</span>
+                └── :38888
+                        ├── GET /             →  viewer/public/index.html
+                        ├── GET /api/skills   →  FTS5 search + LIKE fallback
+                        └── POST /api/sync    →  manual re-parse
+
+<span class="dim">On any Write to docs/skills.md:</span>
+<span class="am">PostToolUse hook</span> → sync-skills.ps1 → append to global-skills.md
+                                              → fs.watch picks up change → DB resyncs</div>
+</div>
+
+<!-- ── Build Timeline ── -->
+<div class="section">
+  <div class="section-title">03 &nbsp; BUILD TIMELINE</div>
+  <div class="timeline">
+
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-dot"></div><div class="tl-connector"></div></div>
+      <div class="tl-right">
+        <div class="tl-label">PHASE 1</div>
+        <div class="tl-title">Design &amp; Architecture</div>
+        <div class="tl-body">Ran /office-hours to validate the idea. Confirmed 4 premises: developers will write entries, local-first works for solo, the viewer is the management UI, Mac support is a precondition not a nice-to-have. Chose Approach A — ship what works, get community feedback before building deeper.</div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-dot green"></div><div class="tl-connector"></div></div>
+      <div class="tl-right">
+        <div class="tl-label green">PHASE 2</div>
+        <div class="tl-title">Core Implementation</div>
+        <div class="tl-body">Built viewer/server.js (SQLite FTS5, parseMd, HTTP API), viewer/public/index.html (3-column dark UI, vanilla JS, zero dependencies), start-viewer.ps1 (SessionStart hook with port check), sync-skills.ps1 (PostToolUse hook). Wired SessionStart in ~/.claude/settings.json. Verified: server starts, FTS5 search works, UI renders.</div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-dot amber"></div><div class="tl-connector"></div></div>
+      <div class="tl-right">
+        <div class="tl-label amber">PHASE 3</div>
+        <div class="tl-title">7 Edge Cases Fixed</div>
+        <div class="tl-body">MD format mismatch (RMA uses YYYY-MM-DD, parser expected [YYYY-MM-DD]) · DB goes stale without live sync · hardcoded binary path for better_sqlite3.node · port check TIME_WAIT race · FTS5 silent empty on special chars · no pagination · no process lifecycle tracking. All 7 fixed. better-sqlite3 workaround documented.</div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-left"><div class="tl-dot purple"></div><div class="tl-connector"></div></div>
+      <div class="tl-right">
+        <div class="tl-label purple">PHASE 4</div>
+        <div class="tl-title">UI Polish</div>
+        <div class="tl-body">Applied /impeccable + /ui-ux-pro-max polish: switched from brand-register to product-register density (16px/20px padding, not 28px/32px). Entries column: title bold top-left, date top-right, project tag below — Canary Mail pattern. Projects column: dot indicator, accent-dim active state, no uppercase eyebrow header. Renamed to skill-trace with trace-path SVG icon.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Stack ── -->
+<div class="section">
+  <div class="section-title">04 &nbsp; TECH STACK</div>
+  <div class="stack-grid">
+    <div class="stack-item">
+      <span class="stack-badge node">Node.js</span>
+      <div class="stack-info">
+        <div class="stack-name">HTTP Server</div>
+        <div class="stack-desc">Built-in http module only</div>
+      </div>
+    </div>
+    <div class="stack-item">
+      <span class="stack-badge sqlite">SQLite FTS5</span>
+      <div class="stack-info">
+        <div class="stack-name">Search Index</div>
+        <div class="stack-desc">better-sqlite3 + porter stemming</div>
+      </div>
+    </div>
+    <div class="stack-item">
+      <span class="stack-badge html">Vanilla JS</span>
+      <div class="stack-info">
+        <div class="stack-name">Viewer UI</div>
+        <div class="stack-desc">No framework, no build step</div>
+      </div>
+    </div>
+    <div class="stack-item">
+      <span class="stack-badge ps">PowerShell</span>
+      <div class="stack-info">
+        <div class="stack-name">Hook Scripts</div>
+        <div class="stack-desc">SessionStart + PostToolUse</div>
+      </div>
+    </div>
+    <div class="stack-item">
+      <span class="stack-badge node">fs.watch</span>
+      <div class="stack-info">
+        <div class="stack-name">Live Sync</div>
+        <div class="stack-desc">500ms debounce on MD changes</div>
+      </div>
+    </div>
+    <div class="stack-item">
+      <span class="stack-badge sqlite">FTS5 + LIKE</span>
+      <div class="stack-info">
+        <div class="stack-name">Search Fallback</div>
+        <div class="stack-desc">Graceful degradation on special chars</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Key Decisions ── -->
+<div class="section">
+  <div class="section-title">05 &nbsp; KEY DECISIONS</div>
+  <div class="decisions">
+    <div class="decision">
+      <div class="decision-num">D1</div>
+      <div>
+        <div class="decision-q">Flat MD as canonical source, SQLite as cache — not the other way around</div>
+        <div class="decision-a">The MD file is readable without the app. The DB is always rebuildable. <strong>Source of truth is never a binary file.</strong></div>
+      </div>
+    </div>
+    <div class="decision">
+      <div class="decision-num">D2</div>
+      <div>
+        <div class="decision-q">Zero-dependency viewer (no React, no bundler)</div>
+        <div class="decision-a">A 3-column dark UI with search and FTS5 requires <strong>no framework</strong>. Vanilla JS + fetch + CSS custom properties. Ships as a single HTML file.</div>
+      </div>
+    </div>
+    <div class="decision">
+      <div class="decision-num">D3</div>
+      <div>
+        <div class="decision-q">Fixed port 38888 — no dynamic port negotiation</div>
+        <div class="decision-a">Single-user dev machine. A fixed port means a <strong>fixed URL you can bookmark</strong>. Dynamic ports would require a port discovery step on every session.</div>
+      </div>
+    </div>
+    <div class="decision">
+      <div class="decision-num">D4</div>
+      <div>
+        <div class="decision-q">HTTP probe before skipping start — not just netstat</div>
+        <div class="decision-a">netstat shows TIME_WAIT connections that look occupied but aren't. <strong>Probing /api/skills confirms it's actually our server</strong>, not a leftover socket.</div>
+      </div>
+    </div>
+    <div class="decision">
+      <div class="decision-num">D5</div>
+      <div>
+        <div class="decision-q">Ship v1.1.0 first, in-session recommendations in v1.2</div>
+        <div class="decision-a">The viewer is the wedge — it proves value before investing in the harder PreToolUse context-injection feature. <strong>Get community usage data before building deeper.</strong></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── What's next ── -->
+<div class="section">
+  <div class="section-title">06 &nbsp; WHAT'S NEXT</div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-label blue">v1.2.0 — IN-SESSION RECOMMENDATIONS</div>
+      <p>A PreToolUse hook queries <code>global-skills.db</code> for entries matching the current task context and injects the top 1–2 results into Claude's context automatically. The viewer becomes optional — relevant knowledge surfaces while you work.</p>
+    </div>
+    <div class="card">
+      <div class="card-label purple">v2.0.0 — TEAM SYNC</div>
+      <p>Replace the flat MD file with a shared git repo or hosted API backend. Multiple developers push and pull skill entries. The knowledge base survives employee turnover and onboarding gaps. This is the version with network effects.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── Footer ── -->
+<div class="footer">
+  <div class="footer-left">skill-trace v1.1.0 · 2026-06-10 · MIT</div>
+  <div class="footer-right">Built with Claude Code · PBC Linear Internal</div>
+</div>
+
+</body>
+</html>

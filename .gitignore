@@ -3,3 +3,5 @@ viewer/node_modules/
 *.log
 *.pid
 .env
+.superpowers/
+viewer/package-lock.json

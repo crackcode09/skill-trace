@@ -29,6 +29,11 @@
           "type": "command",
           "command": "powershell -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File \"$CLAUDE_PLUGIN_ROOT/hooks/scripts/start-viewer.ps1\"",
           "timeout": 30
+        },
+        {
+          "type": "command",
+          "command": "bash \"$CLAUDE_PLUGIN_ROOT/hooks/scripts/start-viewer.sh\"",
+          "timeout": 30
         }
       ]
     }

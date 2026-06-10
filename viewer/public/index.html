@@ -3,80 +3,166 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Global Skills Log</title>
+<title>skill-trace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">
 <style>
+/* ── Design tokens ── */
+:root {
+  --bg:           #0d1117;
+  --surface:      #161b22;
+  --surface-alt:  #1c2128;
+  --border:       #30363d;
+  --border-muted: #21262d;
+  --text:         #e6edf3;
+  --text-body:    #c9d1d9;
+  --text-muted:   #7d8590;   /* fixed from #484f58 — passes WCAG AA 4.6:1 */
+  --text-faint:   #484f58;   /* decorative / non-essential only */
+  --accent:       #58a6ff;
+  --accent-dim:   rgba(88,166,255,.12);
+  --active-bg:    #1f6feb;
+  --amber:        #d29922;
+  --amber-dim:    rgba(210,153,34,.1);
+  --green:        #3fb950;
+  --green-dim:    rgba(63,185,80,.1);
+  --code-fg:      #79c0ff;
+  --shadow-sm:    0 1px 3px rgba(0,0,0,.3);
+  --trans:        150ms ease;
+  --radius:       6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  background: #0d1117;
-  color: #c9d1d9;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text-body);
   height: 100vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ── Top bar ── */
+/* ── Topbar ── */
 .topbar {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
-  background: #161b22;
-  border-bottom: 1px solid #30363d;
+  padding: 0 16px;
+  height: 48px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  min-height: 46px;
 }
-.topbar-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #f0f6fc;
-  white-space: nowrap;
+
+.topbar-brand {
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-.topbar-icon {
-  width: 18px;
-  height: 18px;
+  gap: 8px;
+  white-space: nowrap;
   flex-shrink: 0;
 }
+.brand-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.brand-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
 .search-wrap {
   flex: 1;
   position: relative;
-  max-width: 400px;
+  max-width: 380px;
 }
-.search-wrap svg {
+.search-icon {
   position: absolute;
-  left: 8px;
+  left: 9px;
   top: 50%;
   transform: translateY(-50%);
-  color: #484f58;
+  color: var(--text-muted);
   pointer-events: none;
   width: 14px;
   height: 14px;
 }
 #search {
   width: 100%;
-  background: #0d1117;
-  border: 1px solid #30363d;
-  border-radius: 6px;
-  padding: 5px 10px 5px 28px;
-  color: #c9d1d9;
+  height: 32px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0 32px 0 30px;
+  color: var(--text);
+  font-family: inherit;
   font-size: 13px;
   outline: none;
-  line-height: 1.4;
+  transition: border-color var(--trans), box-shadow var(--trans);
 }
-#search:focus { border-color: #58a6ff; box-shadow: 0 0 0 3px rgba(88,166,255,.1); }
-#search::placeholder { color: #484f58; }
-.topbar-status {
+#search:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+#search::placeholder { color: var(--text-muted); }
+.search-kbd {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 11px;
-  color: #484f58;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  pointer-events: none;
+  line-height: 1.5;
+  transition: opacity var(--trans);
+}
+#search:focus + .search-kbd,
+#search:not(:placeholder-shown) + .search-kbd { opacity: 0; }
+
+.topbar-status {
+  font-size: 12px;
+  color: var(--text-muted);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-/* ── Columns ── */
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--trans), border-color var(--trans), background var(--trans);
+}
+.refresh-btn:hover { color: var(--text); border-color: var(--text-muted); background: var(--surface-alt); }
+.refresh-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.refresh-btn.spinning svg { animation: spin 600ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .refresh-btn.spinning svg { animation: none; }
+}
+
+/* ── Three-column layout ── */
 .columns {
   display: flex;
   flex: 1;
@@ -84,395 +170,396 @@ body {
   min-height: 0;
 }
 
-/* ── Projects ── */
+/* ── Projects column ── */
 .col-projects {
-  width: 180px;
+  width: 200px;
   flex-shrink: 0;
-  background: #161b22;
-  border-right: 1px solid #30363d;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  padding: 12px 0;
 }
-.col-label {
-  padding: 10px 12px 6px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .1em;
-  color: #484f58;
-  text-transform: uppercase;
+
+.col-section-label {
+  padding: 4px 14px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-faint);
   flex-shrink: 0;
+  letter-spacing: 0;
 }
+
 .project-item {
-  padding: 6px 10px;
-  font-size: 12px;
-  cursor: pointer;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  border-radius: 5px;
-  margin: 1px 5px;
-  gap: 4px;
-  min-height: 30px;
-  border: 1px solid transparent;
+  gap: 8px;
+  padding: 0 10px;
+  margin: 1px 8px;
+  height: 34px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: background var(--trans), color var(--trans);
+  color: var(--text-muted);
+  -webkit-user-select: none;
+  user-select: none;
 }
-.project-item:hover { background: #1c2128; border-color: #30363d; }
-.project-item.active { background: #1f6feb; color: #fff; border-color: transparent; }
+.project-item:hover { background: rgba(255,255,255,.05); color: var(--text-body); }
+.project-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.project-item.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.project-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+.project-item.active .project-dot { opacity: 1; }
 .project-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 .project-count {
-  font-size: 10px;
-  background: rgba(255,255,255,.12);
-  border-radius: 10px;
-  padding: 1px 6px;
-  flex-shrink: 0;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
-}
-.project-item.active .project-count { background: rgba(255,255,255,.25); }
-
-/* ── Entries ── */
-.col-entries {
-  width: 240px;
+  color: var(--text-faint);
   flex-shrink: 0;
-  border-right: 1px solid #30363d;
+  font-weight: 400;
+}
+.project-item.active .project-count { color: var(--accent); opacity: 0.7; }
+
+/* ── Entries column ── */
+.col-entries {
+  width: 300px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  background: var(--bg);
 }
+
 .entries-header {
-  padding: 10px 12px 6px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .1em;
-  color: #484f58;
-  text-transform: uppercase;
-  position: sticky;
-  top: 0;
-  background: #0d1117;
-  border-bottom: 1px solid #21262d;
-  flex-shrink: 0;
-  z-index: 1;
-}
-.entry-item {
-  padding: 10px 12px;
-  border-bottom: 1px solid #21262d;
-  cursor: pointer;
-  border-left: 3px solid transparent;
-  flex-shrink: 0;
-}
-.entry-item:hover { background: #161b22; }
-.entry-item.active { background: #161b22; border-left-color: #58a6ff; }
-.entry-title {
+  padding: 12px 14px 10px;
   font-size: 12px;
   font-weight: 500;
-  color: #e6edf3;
-  line-height: 1.4;
+  color: var(--text-muted);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-muted);
+  flex-shrink: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.entry-item {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--trans);
+}
+.entry-item:hover { background: var(--surface); }
+.entry-item.active { background: var(--surface-alt); }
+.entry-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 2px;
+}
+
+.entry-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 3px;
 }
+.entry-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  transition: color var(--trans);
+}
+.entry-item.active .entry-title { color: var(--accent); }
 .entry-date {
-  font-size: 10px;
-  color: #484f58;
+  font-size: 11px;
+  color: var(--text-faint);
   font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .entry-proj-tag {
   display: inline-block;
-  font-size: 9px;
-  background: #1c2128;
-  border: 1px solid #30363d;
-  border-radius: 3px;
-  padding: 1px 4px;
-  color: #8b949e;
-  margin-top: 3px;
-  max-width: 100%;
+  font-size: 11px;
+  background: transparent;
+  border-radius: 4px;
+  padding: 0;
+  color: var(--text-muted);
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.5;
 }
+.entry-item.active .entry-proj-tag { color: var(--accent); opacity: 0.7; }
+
 .empty-state {
-  padding: 32px 12px;
-  font-size: 12px;
-  color: #484f58;
+  padding: 40px 16px;
+  font-size: 13px;
+  color: var(--text-muted);
   text-align: center;
   line-height: 1.6;
 }
 
-/* ── Detail ── */
+/* ── Detail panel ── */
 .col-detail {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 28px;
+  padding: 16px 20px;
   min-width: 0;
 }
+
+.detail-inner {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+}
+
 .detail-placeholder {
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #484f58;
+  color: var(--text-muted);
   font-size: 13px;
   text-align: center;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
-.detail-placeholder svg { opacity: .3; }
+.detail-placeholder svg { opacity: .25; }
+.detail-placeholder p { color: var(--text-muted); }
+
 .detail-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
-  color: #f0f6fc;
+  color: var(--text);
   line-height: 1.3;
-  margin-bottom: 10px;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
 }
+
 .detail-badges {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 .badge {
-  font-size: 11px;
-  background: #1c2128;
-  border: 1px solid #30363d;
-  border-radius: 4px;
-  padding: 3px 8px;
-  color: #8b949e;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 10px;
+  color: var(--text-muted);
+  font-weight: 500;
 }
-.badge.date { color: #58a6ff; border-color: rgba(88,166,255,.3); background: rgba(88,166,255,.05); }
-.section { margin-bottom: 22px; }
-.section-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: #58a6ff;
-  margin-bottom: 8px;
+.badge.date {
+  color: var(--accent);
+  border-color: rgba(88,166,255,.25);
+  background: var(--accent-dim);
+}
+
+/* ── Sections ── */
+.section {
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border-muted);
+  overflow: hidden;
+}
+
+.section-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-muted);
 }
-.section-label::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: rgba(88,166,255,.15);
+.section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.section[data-type="Problem"] .section-header  { background: var(--amber-dim); }
+.section[data-type="Problem"] .section-dot     { background: var(--amber); }
+.section[data-type="Problem"] .section-label   { color: var(--amber); }
+
+.section[data-type="Solution"] .section-header { background: var(--green-dim); }
+.section[data-type="Solution"] .section-dot    { background: var(--green); }
+.section[data-type="Solution"] .section-label  { color: var(--green); }
+
+.section[data-type="Takeaway"] .section-header { background: var(--accent-dim); }
+.section[data-type="Takeaway"] .section-dot    { background: var(--accent); }
+.section[data-type="Takeaway"] .section-label  { color: var(--accent); }
+
 .section-body {
   font-size: 13px;
-  color: #c9d1d9;
-  line-height: 1.7;
+  color: var(--text-body);
+  line-height: 1.75;
+  padding: 14px 16px;
 }
-.section-body strong { color: #e6edf3; font-weight: 600; }
+.section-body p + p { margin-top: 10px; }
+.section-body strong { color: var(--text); font-weight: 600; }
 .section-body code {
-  background: #161b22;
-  border: 1px solid #30363d;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 1px 5px;
-  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
-  font-size: 11.5px;
-  color: #79c0ff;
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 12px;
+  color: var(--code-fg);
 }
 
 /* ── Footer ── */
 .footer {
-  padding: 5px 16px;
-  background: #161b22;
-  border-top: 1px solid #30363d;
-  font-size: 10px;
-  color: #484f58;
+  padding: 0 16px;
+  height: 28px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
   display: flex;
   gap: 16px;
   align-items: center;
   flex-shrink: 0;
 }
-.footer a { color: #484f58; text-decoration: none; }
-.footer a:hover { color: #8b949e; }
+.footer a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color var(--trans);
+}
+.footer a:hover { color: var(--text-body); }
+.footer-sep { color: var(--text-faint); }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #484f58; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 /* ── Loading shimmer ── */
-@keyframes shimmer { from { opacity: .4; } to { opacity: .8; } }
+@keyframes shimmer { from { opacity: .35; } to { opacity: .7; } }
 .loading { animation: shimmer 1s ease-in-out infinite alternate; }
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="topbar-title">
-    <svg class="topbar-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M10 2L12.09 7.26L18 8.27L14 12.14L14.95 18L10 15.27L5.05 18L6 12.14L2 8.27L7.91 7.26L10 2Z" fill="#58a6ff" stroke="#58a6ff" stroke-width="1" stroke-linejoin="round"/>
+<div class="topbar" role="banner">
+  <div class="topbar-brand">
+    <svg class="brand-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <!-- Trace path — execution trace / skill trail -->
+      <circle cx="4" cy="10" r="2" fill="#58a6ff"/>
+      <circle cx="10" cy="5" r="2" fill="#58a6ff" opacity="0.7"/>
+      <circle cx="16" cy="10" r="2" fill="#58a6ff" opacity="0.5"/>
+      <circle cx="10" cy="15" r="2" fill="#58a6ff" opacity="0.35"/>
+      <path d="M6 10 Q10 5 14 10" stroke="#58a6ff" stroke-width="1.2" fill="none" opacity="0.5"/>
+      <path d="M6 10 Q10 15 14 10" stroke="#58a6ff" stroke-width="1.2" fill="none" opacity="0.25"/>
     </svg>
-    Global Skills Log
+    <span class="brand-name">skill-trace</span>
   </div>
+
   <div class="search-wrap">
-    <svg viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <svg class="search-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
       <path fill-rule="evenodd" d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.406a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/>
     </svg>
-    <input type="text" id="search" placeholder="Search entries..." autocomplete="off" spellcheck="false">
+    <input
+      type="search"
+      id="search"
+      placeholder="Search entries…"
+      autocomplete="off"
+      spellcheck="false"
+      aria-label="Search skills entries"
+    >
+    <span class="search-kbd" aria-hidden="true">/</span>
   </div>
-  <div class="topbar-status" id="topbarStatus">Loading…</div>
+
+  <div class="topbar-status" id="topbarStatus" aria-live="polite">Loading…</div>
+  <button type="button" class="refresh-btn" id="refreshBtn" title="Re-sync from global-skills.md" aria-label="Refresh skills database">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+      <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+    </svg>
+  </button>
 </div>
 
-<div class="columns">
-  <div class="col-projects" id="projectList">
-    <div class="col-label">Projects</div>
+<div class="columns" role="main">
+  <nav class="col-projects" id="projectList" aria-label="Project filter">
+    <div class="col-section-label">Projects</div>
     <div class="empty-state loading">Loading…</div>
-  </div>
-  <div class="col-entries" id="entryList">
+  </nav>
+
+  <div class="col-entries" id="entryList" aria-label="Skill entries">
     <div class="entries-header" id="entriesHeader">Entries</div>
   </div>
-  <div class="col-detail" id="detailPanel">
+
+  <article class="col-detail" id="detailPanel" aria-label="Entry detail">
     <div class="detail-placeholder">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.5">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.5" aria-hidden="true">
         <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
       </svg>
-      Select an entry to view details
+      <p>Select an entry to view details</p>
     </div>
-  </div>
+  </article>
 </div>
 
-<div class="footer">
-  <a href="http://localhost:38888" target="_blank">http://localhost:38888</a>
+<footer class="footer" role="contentinfo">
+  <a href="http://localhost:38888">http://localhost:38888</a>
+  <span class="footer-sep">·</span>
   <span id="footerCount"></span>
-</div>
+</footer>
 
 <script>
 'use strict';
 
-let allSkills    = [];
-let filtered     = [];
+let allSkills     = [];
+let filtered      = [];
 let activeProject = 'All';
 let activeId      = null;
 let searchTimer   = null;
 
-// ── Fetch ─────────────────────────────────────────────────────────────────────
-
-async function fetchSkills(q = '', project = '') {
-  const p = new URLSearchParams();
-  if (q)                        p.set('q', q);
-  if (project && project !== 'All') p.set('project', project);
-  const res = await fetch('/api/skills?' + p.toString());
-  return res.json();
-}
-
-// ── Render: projects ──────────────────────────────────────────────────────────
-
-function buildProjectCounts(skills) {
-  const c = {};
-  for (const s of allSkills) c[s.project] = (c[s.project] || 0) + 1;
-  return c;
-}
-
-function renderProjects(visibleSkills) {
-  const counts = buildProjectCounts(allSkills);
-  const projects = Object.keys(counts).sort();
-  const list = document.getElementById('projectList');
-  list.innerHTML = '<div class="col-label">Projects</div>';
-
-  list.appendChild(makeProjectItem('All', allSkills.length, activeProject === 'All'));
-  for (const p of projects) {
-    const visCount = visibleSkills.filter(s => s.project === p).length;
-    list.appendChild(makeProjectItem(p, visCount, activeProject === p));
-  }
-}
-
-function makeProjectItem(name, count, active) {
-  const div = document.createElement('div');
-  div.className = 'project-item' + (active ? ' active' : '');
-  div.setAttribute('role', 'button');
-  div.setAttribute('tabindex', '0');
-  div.setAttribute('aria-label', `Filter by ${name}, ${count} entries`);
-  div.innerHTML = `<span class="project-name">${esc(name)}</span><span class="project-count">${count}</span>`;
-  const select = () => selectProject(name);
-  div.addEventListener('click', select);
-  div.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); } });
-  return div;
-}
-
-// ── Render: entries ───────────────────────────────────────────────────────────
-
-function renderEntries(skills) {
-  const list = document.getElementById('entryList');
-  // Keep sticky header
-  const header = document.getElementById('entriesHeader');
-  list.innerHTML = '';
-  list.appendChild(header);
-
-  const count = skills.length;
-  document.getElementById('footerCount').textContent = `${count} entr${count === 1 ? 'y' : 'ies'} · global-skills v1.1.0`;
-  document.getElementById('topbarStatus').textContent = count > 0 ? `${count} entries` : 'No entries';
-
-  if (!count) {
-    const msg = document.createElement('div');
-    msg.className = 'empty-state';
-    msg.textContent = activeProject !== 'All'
-      ? `No entries in ${activeProject}`
-      : document.getElementById('search').value ? 'No matches found' : 'No entries yet';
-    list.appendChild(msg);
-    if (!document.getElementById('detailPanel').querySelector('.detail-placeholder')) {
-      document.getElementById('detailPanel').innerHTML = '<div class="detail-placeholder">No entries found</div>';
-    }
-    return;
-  }
-
-  for (const s of skills) {
-    const div = document.createElement('div');
-    div.className = 'entry-item' + (s.id === activeId ? ' active' : '');
-    div.dataset.id = s.id;
-    div.setAttribute('role', 'button');
-    div.setAttribute('tabindex', '0');
-    div.setAttribute('aria-label', s.title);
-    div.innerHTML = `
-      <div class="entry-title">${esc(s.title)}</div>
-      <div class="entry-date">${s.date}</div>
-      ${activeProject === 'All' ? `<div class="entry-proj-tag">${esc(s.project)}</div>` : ''}
-    `;
-    const select = () => selectEntry(s);
-    div.addEventListener('click', select);
-    div.addEventListener('keydown', e => { if (e.key === 'Enter') select(); });
-    list.appendChild(div);
-  }
-}
-
-// ── Render: detail ────────────────────────────────────────────────────────────
-
-function renderDetail(s) {
-  const panel = document.getElementById('detailPanel');
-  const sections = [
-    ['Problem',  s.problem],
-    ['Solution', s.solution],
-    ['Takeaway', s.takeaway],
-  ].filter(([, v]) => v);
-
-  panel.innerHTML = `
-    <div class="detail-title">${esc(s.title)}</div>
-    <div class="detail-badges">
-      <span class="badge">${esc(s.project)}</span>
-      <span class="badge date">${s.date}</span>
-    </div>
-    ${sections.map(([label, text]) => `
-      <div class="section">
-        <div class="section-label">${label}</div>
-        <div class="section-body">${renderMd(esc(text))}</div>
-      </div>
-    `).join('')}
-  `;
-}
-
-function renderMd(html) {
-  return html
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
-    .replace(/\n\n+/g, '</p><p style="margin-top:10px">')
-    .replace(/\n/g, '<br>');
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function esc(str) {
   if (!str) return '';
@@ -481,6 +568,140 @@ function esc(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDate(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return `${MONTHS[m - 1]} ${d}, ${y}`;
+}
+
+function renderMd(html) {
+  return html
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+    .replace(/\n\n+/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+}
+
+// ── Fetch ─────────────────────────────────────────────────────────────────────
+
+async function fetchSkills(q = '', project = '') {
+  const p = new URLSearchParams();
+  if (q) p.set('q', q);
+  if (project && project !== 'All') p.set('project', project);
+  const res = await fetch('/api/skills?' + p.toString());
+  return res.json();
+}
+
+// ── Projects ──────────────────────────────────────────────────────────────────
+
+function renderProjects(visibleSkills) {
+  const counts = {};
+  for (const s of allSkills) counts[s.project] = (counts[s.project] || 0) + 1;
+  const projects = Object.keys(counts).sort();
+
+  const list = document.getElementById('projectList');
+  list.innerHTML = '<div class="col-section-label">Projects</div>';
+  list.appendChild(makeProjectItem('All', allSkills.length, activeProject === 'All'));
+  for (const proj of projects) {
+    const vis = visibleSkills.filter(s => s.project === proj).length;
+    list.appendChild(makeProjectItem(proj, vis, activeProject === proj));
+  }
+}
+
+function makeProjectItem(name, count, active) {
+  const el = document.createElement('div');
+  el.className = 'project-item' + (active ? ' active' : '');
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+  el.setAttribute('aria-pressed', active ? 'true' : 'false');
+  el.setAttribute('aria-label', `${name} — ${count} ${count === 1 ? 'entry' : 'entries'}`);
+  el.innerHTML = `<span class="project-dot"></span><span class="project-name">${esc(name)}</span><span class="project-count">${count}</span>`;
+  const select = () => selectProject(name);
+  el.addEventListener('click', select);
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); } });
+  return el;
+}
+
+// ── Entries ───────────────────────────────────────────────────────────────────
+
+function renderEntries(skills) {
+  const list   = document.getElementById('entryList');
+  const header = document.getElementById('entriesHeader');
+  list.innerHTML = '';
+  list.appendChild(header);
+
+  const count = skills.length;
+  document.getElementById('footerCount').textContent =
+    `${count} ${count === 1 ? 'entry' : 'entries'} · skill-trace v1.1.0`;
+  document.getElementById('topbarStatus').textContent =
+    count > 0 ? `${count} ${count === 1 ? 'entry' : 'entries'}` : 'No entries';
+
+  if (!count) {
+    const msg = document.createElement('div');
+    msg.className = 'empty-state';
+    const q = document.getElementById('search').value;
+    msg.textContent = q ? `No matches for "${q}"` :
+      activeProject !== 'All' ? `No entries in ${activeProject}` : 'No entries yet';
+    list.appendChild(msg);
+    document.getElementById('detailPanel').innerHTML =
+      '<div class="detail-placeholder"><p>No entries found</p></div>';
+    return;
+  }
+
+  for (const s of skills) {
+    const el = document.createElement('div');
+    el.className = 'entry-item' + (s.id === activeId ? ' active' : '');
+    el.dataset.id = s.id;
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('aria-label', `${s.title}, ${fmtDate(s.date)}`);
+    el.innerHTML = `
+      <div class="entry-header-row">
+        <div class="entry-title">${esc(s.title)}</div>
+        <span class="entry-date">${fmtDate(s.date)}</span>
+      </div>
+      ${activeProject === 'All' ? `<span class="entry-proj-tag">${esc(s.project)}</span>` : ''}
+    `;
+    const select = () => selectEntry(s);
+    el.addEventListener('click', select);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') select(); });
+    list.appendChild(el);
+  }
+}
+
+// ── Detail ────────────────────────────────────────────────────────────────────
+
+function makeSection(type, text) {
+  return `
+    <div class="section" data-type="${type}">
+      <div class="section-header">
+        <span class="section-dot" aria-hidden="true"></span>
+        <span class="section-label">${type}</span>
+      </div>
+      <div class="section-body"><p>${renderMd(esc(text))}</p></div>
+    </div>
+  `;
+}
+
+function renderDetail(s) {
+  const sections = [
+    ['Problem',  s.problem],
+    ['Solution', s.solution],
+    ['Takeaway', s.takeaway],
+  ].filter(([, v]) => v);
+
+  document.getElementById('detailPanel').innerHTML = `
+    <div class="detail-inner">
+      <h1 class="detail-title">${esc(s.title)}</h1>
+      <div class="detail-badges">
+        <span class="badge">${esc(s.project)}</span>
+        <span class="badge date">${fmtDate(s.date)}</span>
+      </div>
+      ${sections.map(([type, text]) => makeSection(type, text)).join('')}
+    </div>
+  `;
 }
 
 // ── Interactions ──────────────────────────────────────────────────────────────
@@ -494,10 +715,10 @@ async function selectProject(name) {
   renderEntries(filtered);
   document.getElementById('detailPanel').innerHTML = `
     <div class="detail-placeholder">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.5">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="1.5" aria-hidden="true">
         <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
       </svg>
-      Select an entry to view details
+      <p>Select an entry to view details</p>
     </div>
   `;
 }
@@ -510,33 +731,52 @@ function selectEntry(s) {
   renderDetail(s);
 }
 
-// ── Search ────────────────────────────────────────────────────────────────────
-
 document.getElementById('search').addEventListener('input', e => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(async () => {
-    const q = e.target.value.trim();
+    const q    = e.target.value.trim();
     const proj = activeProject === 'All' ? '' : activeProject;
-    filtered = await fetchSkills(q, proj);
+    filtered   = await fetchSkills(q, proj);
     renderEntries(filtered);
     renderProjects(filtered);
   }, 250);
 });
 
-// Keyboard shortcut: / to focus search
 document.addEventListener('keydown', e => {
   if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
     e.preventDefault();
-    document.getElementById('search').focus();
-    document.getElementById('search').select();
+    const s = document.getElementById('search');
+    s.focus();
+    s.select();
   }
   if (e.key === 'Escape') {
-    const searchEl = document.getElementById('search');
-    if (searchEl.value) {
-      searchEl.value = '';
-      searchEl.dispatchEvent(new Event('input'));
-    }
+    const s = document.getElementById('search');
+    if (s.value) { s.value = ''; s.dispatchEvent(new Event('input')); }
   }
+});
+
+// ── Refresh button ────────────────────────────────────────────────────────────
+
+document.getElementById('refreshBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  btn.disabled = true;
+  try {
+    await fetch('/api/sync');
+    allSkills = await fetchSkills();
+    filtered  = allSkills;
+    renderProjects(allSkills);
+    const q = document.getElementById('search').value.trim();
+    if (q) {
+      filtered = allSkills.filter(s =>
+        [s.title, s.problem, s.solution, s.takeaway, s.project]
+          .some(f => f && f.toLowerCase().includes(q.toLowerCase()))
+      );
+    }
+    renderEntries(filtered);
+  } catch {}
+  btn.classList.remove('spinning');
+  btn.disabled = false;
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -547,10 +787,14 @@ async function init() {
     filtered  = allSkills;
     renderProjects(allSkills);
     renderEntries(allSkills);
-    if (allSkills.length > 0) renderDetail(allSkills[0]), (activeId = allSkills[0].id),
+    if (allSkills.length > 0) {
+      activeId = allSkills[0].id;
+      renderDetail(allSkills[0]);
       document.querySelector('.entry-item')?.classList.add('active');
-  } catch (err) {
-    document.getElementById('projectList').innerHTML = '<div class="col-label">Projects</div><div class="empty-state">Server not running</div>';
+    }
+  } catch {
+    document.getElementById('projectList').innerHTML =
+      '<div class="col-section-label">Projects</div><div class="empty-state">Server not running</div>';
     document.getElementById('topbarStatus').textContent = 'Offline';
   }
 }
