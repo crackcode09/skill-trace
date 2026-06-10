@@ -2,6 +2,10 @@
 
 ![skill-trace](assets/banner.svg)
 
+**claude-mem remembers what Claude did. skill-trace remembers what you learned.**
+
+*A curated lessons-learned log for Claude Code — Problem / Solution / Takeaway, one grep-able markdown file, zero dependencies.*
+
 </div>
 
 ---
@@ -175,6 +179,25 @@ The PostToolUse hook fires on every save, appends to `~/.claude/global-skills.md
 </div>
 
 Search across title, problem, solution, and takeaway. Filter by project. Click any entry for the full detail pane.
+
+---
+
+## `// vs claude-mem`
+
+[claude-mem](https://github.com/thedotmack/claude-mem) is an automatic observation recorder — it captures every tool call, compresses them with AI, and stores them in SQLite + Chroma vector embeddings. It answers *"what was I doing last session?"*
+
+skill-trace is a curated lessons journal. You (or Claude, on instruction) choose what's worth keeping. It answers *"what did I learn, ever, anywhere?"*
+
+| | skill-trace | claude-mem |
+| -- | -- | -- |
+| **Capture** | Manual — you choose what matters | Automatic — every tool call, compressed |
+| **Signal** | Distilled: Problem / Solution / Takeaway | Exhaust: full observation stream |
+| **Storage** | Flat Markdown — grep it, vim it, git it | SQLite + Chroma vector DB |
+| **Dependencies** | Zero — Node built-ins only | Node 20+, Bun, Python + uv embedding service |
+| **Answers** | "What did I learn, ever, anywhere?" | "What was I doing last session?" |
+| **Readable without the app** | Yes — plain `.md` file | No — requires the service to query |
+
+**Both tools can coexist.** If you want automatic total recall of every action, use claude-mem. If you want a curated engineering logbook that travels across projects and machines as a single readable file, use skill-trace.
 
 ---
 
