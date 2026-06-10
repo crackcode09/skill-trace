@@ -1,0 +1,14 @@
+{
+  "name": "skill-trace",
+  "owner": {
+    "name": "Nidhin Dileepkumar",
+    "email": "nidhin.dileepkumar@pbclinear.com"
+  },
+  "plugins": [
+    {
+      "name": "skill-trace",
+      "source": ".",
+      "description": "Auto-syncs docs/skills.md entries to a global cross-project skills log with a local search viewer on port 38888."
+    }
+  ]
+}

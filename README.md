@@ -47,7 +47,16 @@ PostToolUse hook → sync-skills.ps1 → append to global-skills.md
 
 ## `// install`
 
-**1. Clone into your Claude plugins directory**
+**Option A — Claude Code plugin install (recommended)**
+
+```
+/plugin marketplace add crackcode09/skill-trace
+/plugin install skill-trace@skill-trace
+```
+
+Hooks are configured automatically. Start a new session and the viewer is running.
+
+**Option B — Manual clone**
 
 ```bash
 # Windows
@@ -57,7 +66,7 @@ git clone https://github.com/crackcode09/skill-trace "$env:USERPROFILE\.claude\s
 git clone https://github.com/crackcode09/skill-trace ~/.claude/skills/skill-trace
 ```
 
-**2. Add the hooks to `~/.claude/settings.json`**
+**2. Add the hooks to `~/.claude/settings.json`** (manual install only)
 
 ```json
 {
