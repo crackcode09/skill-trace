@@ -5,3 +5,4 @@ viewer/node_modules/
 .env
 .superpowers/
 viewer/package-lock.json
+docs/
