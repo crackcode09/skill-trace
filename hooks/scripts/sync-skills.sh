@@ -21,7 +21,7 @@ stdin=$(cat 2>/dev/null || true)
 
 # Pass JSON via env var to avoid quoting/escaping issues with special chars
 SKILL_TRACE_INPUT="$stdin" python3 << 'PYEOF'
-import sys, json, re, os
+import sys, json, re, os, hashlib
 
 raw = os.environ.get('SKILL_TRACE_INPUT', '')
 
@@ -59,7 +59,7 @@ elif tool_name == 'Edit':
 if not content:
     sys.exit(0)
 
-# Infer project name: parent of the docs/ folder
+# Infer project name: prefer git remote slug (stable across renames), fall back to folder name
 normalized = file_path.replace('\\', '/')
 parts = normalized.split('/')
 project_name = 'unknown-project'
@@ -67,6 +67,18 @@ for i in range(len(parts) - 1, -1, -1):
     if parts[i] == 'docs' and i > 0:
         project_name = parts[i - 1]
         break
+try:
+    import subprocess
+    git_dir = os.path.dirname(os.path.abspath(file_path))
+    r = subprocess.run(['git', '-C', git_dir, 'config', '--get', 'remote.origin.url'],
+                       capture_output=True, text=True, timeout=2)
+    if r.returncode == 0:
+        url  = r.stdout.strip()
+        slug = re.sub(r'\.git$', '', url.split('/')[-1].split(':')[-1])
+        if slug:
+            project_name = slug
+except Exception:
+    pass
 
 # Parse ## [...] or ## YYYY-MM-DD skill entry blocks
 # Normalize: add brackets if missing so global-skills.md stays consistent
@@ -98,15 +110,55 @@ if os.path.exists(global_path):
     except Exception:
         pass
 
-# Filter to entries whose header doesn't yet exist in global log.
-# Dedup on bare title+date only (strip <!-- --> comment before checking)
-# so project renames don't create duplicates — same lesson is same lesson.
+# Content-hash dedup: key = bare_header + sha1(normalized_body)[:12]
+# Rename-proof, clone-proof, path-move-proof.
+# Two different lessons with the same title still both sync — their bodies differ.
+def entry_key(entry):
+    lines = entry.split('\n')
+    header = re.sub(r'\s*<!--.*?-->\s*$', '', lines[0].strip())
+    body_lines = [l.strip() for l in lines[1:]
+                  if l.strip() and not l.strip().startswith('**Project:**')]
+    body = '\n'.join(body_lines)
+    h = hashlib.sha1(body.encode('utf-8')).hexdigest()[:12]
+    return header + '|' + h
+
+# Build key→header map from existing global content
+existing_keys = {}
+if global_content:
+    for block in re.split(r'(?m)(?=^## \[?\d{4}-\d{2}-\d{2}\]?)', global_content):
+        block = block.strip()
+        if not block or not re.match(r'^## \[?\d{4}-\d{2}-\d{2}\]?', block):
+            continue
+        k = entry_key(block)
+        existing_keys[k] = block.split('\n')[0].strip()
+
 new_entries = []
+provenance_edits = []
 for entry in entries:
-    header = entry.split('\n')[0].strip()
-    bare_header = re.sub(r'\s*<!--.*-->$', '', header)
-    if bare_header not in global_content:
+    key = entry_key(entry)
+    if key in existing_keys:
+        existing_header = existing_keys[key]
+        m = re.search(r'<!--\s*(.+?)\s*-->', existing_header)
+        if m:
+            existing_projects = [p.strip() for p in m.group(1).split(',')]
+            if project_name not in existing_projects:
+                new_comment = '<!-- {} -->'.format(', '.join(existing_projects + [project_name]))
+                new_header = re.sub(r'<!--\s*.+?\s*-->', new_comment, existing_header)
+                provenance_edits.append((existing_header, new_header))
+    else:
         new_entries.append(entry)
+
+# Apply provenance merges in one file rewrite
+if provenance_edits:
+    updated = global_content
+    for old_h, new_h in provenance_edits:
+        updated = updated.replace(old_h, new_h, 1)
+    try:
+        with open(global_path, 'w', encoding='utf-8') as f:
+            f.write(updated)
+        global_content = updated
+    except Exception:
+        pass
 
 if not new_entries:
     sys.exit(0)

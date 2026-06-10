@@ -46,7 +46,7 @@ if ($tool_name -eq 'Write') {
 
 if ([string]::IsNullOrEmpty($content)) { exit 0 }
 
-# Infer project name: parent of the docs/ folder
+# Infer project name: prefer git remote slug (stable across renames), fall back to folder name
 $normalized = $file_path -replace '\\', '/'
 $parts = $normalized -split '/'
 $project_name = 'unknown-project'
@@ -56,6 +56,14 @@ for ($i = $parts.Length - 1; $i -ge 0; $i--) {
         break
     }
 }
+try {
+    $git_dir    = Split-Path $file_path
+    $git_remote = & git -C $git_dir config --get remote.origin.url 2>$null
+    if ($git_remote) {
+        $slug = ($git_remote -replace '\.git$', '') -replace '^.*[/:]', ''
+        if ($slug) { $project_name = $slug }
+    }
+} catch {}
 
 # Parse ## [...] or ## YYYY-MM-DD skill entry blocks from content
 # Normalize: add brackets if missing so global-skills.md stays consistent
@@ -85,16 +93,61 @@ if (Test-Path $global_path) {
     $global_content = Get-Content $global_path -Raw -Encoding UTF8
 }
 
-# Filter to entries whose header doesn't yet exist in global log.
-# Dedup on bare title+date only (strip any existing <!-- --> comment before checking)
-# so project renames don't create duplicates — same lesson is same lesson.
-$new_entries = [System.Collections.Generic.List[string]]::new()
+# Content-hash dedup: key = bare_header + sha1(normalized_body)[:12]
+# Rename-proof, clone-proof, path-move-proof.
+# Two different lessons with the same title still both sync — their bodies differ.
+function Get-EntryKey([string]$entry) {
+    $lines  = $entry -split "`n"
+    $header = $lines[0].Trim() -replace '\s*<!--.*?-->\s*$', ''
+    $body   = (($lines[1..($lines.Length - 1)] |
+        Where-Object { $_.Trim() -ne '' -and $_.Trim() -notmatch '^\*\*Project:\*\*' } |
+        ForEach-Object { $_.Trim() }) -join "`n")
+    $bytes  = [System.Text.Encoding]::UTF8.GetBytes($body)
+    $sha    = [System.Security.Cryptography.SHA1]::Create()
+    $hash   = ([BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '').Substring(0, 12).ToLower()
+    return "$header|$hash"
+}
+
+# Build key→header map from existing global file
+$existing_keys = @{}
+if ($global_content) {
+    ($global_content -split '(?m)(?=^## \[?\d{4}-\d{2}-\d{2}\]?)') |
+        Where-Object { $_ -match '^## \[?\d{4}-\d{2}-\d{2}\]?' } |
+        ForEach-Object {
+            $k = Get-EntryKey $_.TrimEnd()
+            $existing_keys[$k] = ($_.TrimEnd() -split "`n")[0].Trim()
+        }
+}
+
+$new_entries      = [System.Collections.Generic.List[string]]::new()
+$provenance_edits = [System.Collections.Generic.List[hashtable]]::new()
+
 foreach ($entry in $entries) {
-    $header = ($entry -split "`n")[0].Trim()
-    $bare_header = $header -replace '\s*<!--.*-->$', ''
-    if ($global_content -notmatch [regex]::Escape($bare_header)) {
+    $key = Get-EntryKey $entry
+    if ($existing_keys.ContainsKey($key)) {
+        # Same content already exists — merge project into attribution comment if new
+        $existing_header   = $existing_keys[$key]
+        if ($existing_header -match '<!--\s*(.+?)\s*-->') {
+            $existing_projects = @($Matches[1] -split ',\s*' | ForEach-Object { $_.Trim() })
+            if ($existing_projects -notcontains $project_name) {
+                $new_comment = "<!-- $(($existing_projects + $project_name) -join ', ') -->"
+                $provenance_edits.Add(@{
+                    Old = $existing_header
+                    New = $existing_header -replace '<!--\s*.+?\s*-->', $new_comment
+                })
+            }
+        }
+    } else {
         $new_entries.Add($entry)
     }
+}
+
+# Apply provenance merges in one file rewrite
+if ($provenance_edits.Count -gt 0) {
+    foreach ($edit in $provenance_edits) {
+        $global_content = $global_content.Replace($edit.Old, $edit.New)
+    }
+    Set-Content $global_path $global_content -Encoding UTF8
 }
 
 if ($new_entries.Count -eq 0) { exit 0 }

@@ -4,6 +4,7 @@ const { createServer } = require('http');
 const { readFileSync, existsSync, watch, writeFileSync, unlinkSync } = require('fs');
 const { join } = require('path');
 const { homedir } = require('os');
+const { createHash } = require('crypto');
 
 const HOME      = homedir();
 const MD_PATH   = join(HOME, '.claude', 'global-skills.md');
@@ -44,6 +45,61 @@ function parseMd(content) {
     });
   }
   return entries;
+}
+
+// ── Entry key: content-hash for dedup (mirrors sync-skills logic) ────────────
+
+function entryKey(rawBlock) {
+  const lines = rawBlock.split('\n');
+  const header = lines[0].trim().replace(/\s*<!--.*?-->\s*$/, '');
+  const body = lines.slice(1)
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith('**Project:**'))
+    .join('\n');
+  return `${header}|${createHash('sha1').update(body, 'utf8').digest('hex').slice(0, 12)}`;
+}
+
+// ── Dedupe: collapse duplicate entries, merge provenance tags ─────────────────
+
+function dedupeGlobal() {
+  if (!existsSync(MD_PATH)) return { removed: 0, merged: 0 };
+  const raw = readFileSync(MD_PATH, 'utf8');
+  const introMatch = raw.match(/^([\s\S]*?)(?=^## \[?\d{4}-\d{2}-\d{2}\]?)/m);
+  const intro  = introMatch ? introMatch[1] : '';
+  const blocks = raw.split(/(?=^## \[?\d{4}-\d{2}-\d{2}\]?)/m)
+    .filter(b => /^## \[?\d{4}-\d{2}-\d{2}\]?/.test(b))
+    .map(b => b.trimEnd());
+
+  const seen = new Map(); // key → index in kept
+  const kept = [];
+  let removed = 0;
+  let merged  = 0;
+
+  for (const block of blocks) {
+    const key = entryKey(block);
+    if (seen.has(key)) {
+      const idx = seen.get(key);
+      const existingProjects = ((kept[idx].split('\n')[0].match(/<!--\s*(.+?)\s*-->/) || ['',''])[1])
+        .split(',').map(p => p.trim()).filter(Boolean);
+      const incomingProjects = ((block.split('\n')[0].match(/<!--\s*(.+?)\s*-->/) || ['',''])[1])
+        .split(',').map(p => p.trim()).filter(Boolean);
+      const all = [...new Set([...existingProjects, ...incomingProjects])];
+      if (all.length > existingProjects.length) {
+        kept[idx] = kept[idx].replace(/<!--\s*.+?\s*-->/, `<!-- ${all.join(', ')} -->`);
+        merged++;
+      }
+      removed++;
+    } else {
+      seen.set(key, kept.length);
+      kept.push(block);
+    }
+  }
+
+  if (removed > 0 || merged > 0) {
+    writeFileSync(MD_PATH, intro + kept.join('\n\n') + '\n', 'utf8');
+    sync();
+  }
+  return { removed, merged };
 }
 
 // ── Sync: rebuild in-memory store from MD ────────────────────────────────────
@@ -154,6 +210,16 @@ const server = createServer((req, res) => {
     results = results.slice(offset, offset + limit);
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': `http://localhost:${PORT}` });
     return res.end(JSON.stringify(results));
+  }
+
+  if (url.pathname === '/api/dedupe') {
+    if (req.method !== 'POST') {
+      res.writeHead(405, { Allow: 'POST' });
+      return res.end('Method Not Allowed');
+    }
+    const result = dedupeGlobal();
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': `http://localhost:${PORT}` });
+    return res.end(JSON.stringify({ ok: true, ...result }));
   }
 
   res.writeHead(404);
