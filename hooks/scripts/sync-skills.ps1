@@ -85,13 +85,14 @@ if (Test-Path $global_path) {
     $global_content = Get-Content $global_path -Raw -Encoding UTF8
 }
 
-# Filter to entries whose header doesn't yet exist in global log
+# Filter to entries whose header doesn't yet exist in global log.
+# Dedup on bare title+date only (strip any existing <!-- --> comment before checking)
+# so project renames don't create duplicates — same lesson is same lesson.
 $new_entries = [System.Collections.Generic.List[string]]::new()
 foreach ($entry in $entries) {
     $header = ($entry -split "`n")[0].Trim()
-    # Dedup by: header + project (same skill title could appear in two projects legitimately)
-    $dedup_marker = $header + " <!-- $project_name -->"
-    if ($global_content -notmatch [regex]::Escape($dedup_marker)) {
+    $bare_header = $header -replace '\s*<!--.*-->$', ''
+    if ($global_content -notmatch [regex]::Escape($bare_header)) {
         $new_entries.Add($entry)
     }
 }

@@ -232,7 +232,7 @@ The viewer proves value before investing in the harder PreToolUse context-inject
 
 ## `// known limitations`
 
-- **Append-only sync** — entries are deduplicated by header + project name. If you rename an entry's title or fix a typo in its date, a duplicate appears in `global-skills.md`. Body edits (problem/solution/takeaway text) never propagate to the global file. To correct an entry, edit it directly in `~/.claude/global-skills.md`.
+- **Append-only sync** — entries are deduplicated by title + date (the `## [date] — Title` line). Renaming a project directory does not create duplicates. However, if you change an entry's title or date, a duplicate appears in `global-skills.md`. Body edits (problem/solution/takeaway text) never propagate either. To correct an entry, edit it directly in `~/.claude/global-skills.md`.
 - **Pure Windows without Git Bash** — the bash hooks (`sync-skills.sh`, `start-viewer.sh`) require bash. On a machine with only PowerShell and no Git Bash installed, use the Windows-only manual hooks snippet in the install section above.
 - **< 1000 entries** — the in-memory `Array.filter()` search is fast up to roughly 1000 entries. Beyond that, consider the v1.3.0 BM25 scorer (see roadmap).
 

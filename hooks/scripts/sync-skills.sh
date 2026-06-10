@@ -98,13 +98,14 @@ if os.path.exists(global_path):
     except Exception:
         pass
 
-# Filter to entries whose header doesn't yet exist in global log
-# Dedup by: header + project (same skill title could appear in two projects)
+# Filter to entries whose header doesn't yet exist in global log.
+# Dedup on bare title+date only (strip <!-- --> comment before checking)
+# so project renames don't create duplicates — same lesson is same lesson.
 new_entries = []
 for entry in entries:
     header = entry.split('\n')[0].strip()
-    dedup_marker = '{} <!-- {} -->'.format(header, project_name)
-    if dedup_marker not in global_content:
+    bare_header = re.sub(r'\s*<!--.*-->$', '', header)
+    if bare_header not in global_content:
         new_entries.append(entry)
 
 if not new_entries:
