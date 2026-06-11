@@ -23,6 +23,16 @@ that lands under the 1.3.0 tag when its code does. This release is plumbing only
   provenance-merge path was dead on Windows. Wrapped the operator in parens. This
   shipped undetected because the fix was only ever verified on bash/macOS — the CI
   matrix now parses each platform's script on that platform.
+- **Registry dir parity**: the PowerShell source-recorder didn't create `~/.claude`
+  before writing (the Python path did via `makedirs`). Added the guard. A new
+  **runtime** hook test spawns the real per-OS script and asserts the full chain
+  (record → parse → append), the coverage that parse-only checks miss.
+
+### Known issues
+- The global-log append path is not yet lock-guarded (the trust registry is).
+  Two sessions writing the same `docs/skills.md` simultaneously can append a
+  duplicate entry; content-hash dedup catches it on the next sync and `/api/dedupe`
+  cleans it. Locking that path is the next hardening step.
 
 ### Changed
 - `server.js` and `trust.js` export their pure functions and only start a process
