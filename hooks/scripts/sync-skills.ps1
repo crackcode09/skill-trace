@@ -65,30 +65,16 @@ try {
     }
 } catch {}
 
-# Record this source in the trust registry as UNTRUSTED if not already present.
-# Invariant: the hook only ever ADDS rows as 'no'. Trust is granted only by the
-# human (/skill-trust or manual edit), never here, never from synced content.
-# Capture is never gated on this; only Phase 2 injection reads it.
-function Register-Source([string]$slug) {
-    if ([string]::IsNullOrWhiteSpace($slug)) { return }
-    $trustPath = Join-Path $env:USERPROFILE '.claude\skill-trace-trust.txt'
-    $lockPath  = "$trustPath.lock"
-    # Ensure ~/.claude exists before locking/writing (parity with the Python path's
-    # makedirs). Realistically always present, but defensive + makes the dir the
-    # single source of the path, never a literal.
-    try {
-        $trustDir = Split-Path $trustPath
-        if (-not (Test-Path $trustDir)) { New-Item -ItemType Directory -Path $trustDir -Force | Out-Null }
-    } catch { return }
-
-    # Acquire a lock so the read-check-append critical section is serialized across
-    # concurrent sessions (the OS gate only serializes ps1-vs-sh, not session-vs-session).
-    # Bounded retry; steal a stale lock; fall through best-effort if never acquired.
-    $acquired = $false
+# ── File lock ────────────────────────────────────────────────────────────────
+# Serialize the whole sync critical section across concurrent sessions (the OS
+# gate only separates ps1-vs-sh, not session-vs-session). Bounded retry; steal a
+# lock older than 15s. The same implementation guards both the registry and the
+# global log — one set of timeout rules, never two that can diverge.
+function Acquire-FileLock([string]$lockPath) {
     for ($i = 0; $i -lt 50; $i++) {
         try {
             $fs = [System.IO.File]::Open($lockPath, 'CreateNew', 'Write', 'None')
-            $fs.Close(); $acquired = $true; break
+            $fs.Close(); return $true
         } catch {
             try {
                 if ((Test-Path $lockPath) -and (((Get-Date) - (Get-Item $lockPath).LastWriteTime).TotalSeconds -gt 15)) {
@@ -98,15 +84,26 @@ function Register-Source([string]$slug) {
             Start-Sleep -Milliseconds 30
         }
     }
+    return $false
+}
+function Release-FileLock([string]$lockPath) {
+    Remove-Item $lockPath -Force -ErrorAction SilentlyContinue
+}
 
+# Record this source in the trust registry as UNTRUSTED if not already present.
+# Caller already holds the sync lock. Invariant: the hook only ever ADDS rows as
+# 'no'. Trust is granted only by the human (/skill-trust or manual edit), never
+# here, never from synced content. Capture is never gated on this; only Phase 2
+# injection reads it.
+function Record-Source([string]$slug) {
+    if ([string]::IsNullOrWhiteSpace($slug)) { return }
+    $trustPath = Join-Path $env:USERPROFILE '.claude\skill-trace-trust.txt'
     try {
-        $isNew = -not (Test-Path $trustPath)
-        if (-not $isNew) {
+        if (Test-Path $trustPath) {
             foreach ($line in (Get-Content $trustPath -Encoding UTF8)) {
                 $t = $line.Trim()
                 if ($t -eq '' -or $t.StartsWith('#')) { continue }
-                $key = ($t -split '\|')[0].Trim()
-                if ($key -eq $slug) { return }  # already recorded
+                if (($t -split '\|')[0].Trim() -eq $slug) { return }  # already recorded
             }
         } else {
             $header = @"
@@ -120,11 +117,8 @@ function Register-Source([string]$slug) {
         }
         $today = (Get-Date).ToString('yyyy-MM-dd')
         Add-Content $trustPath ("$slug | no | $today |  | ") -Encoding UTF8
-    } catch {} finally {
-        if ($acquired) { Remove-Item $lockPath -Force -ErrorAction SilentlyContinue }
-    }
+    } catch {}
 }
-Register-Source $project_name
 
 # Parse ## [...] or ## YYYY-MM-DD skill entry blocks from content
 # Normalize: add brackets if missing so global-skills.md stays consistent
@@ -145,6 +139,18 @@ foreach ($line in ($content -split "`n")) {
 }
 if ($null -ne $current) { $entries.Add($current.TrimEnd()) }
 if ($entries.Count -eq 0) { exit 0 }
+
+# Take ONE sync-wide lock covering BOTH the trust-registry write and the global-log
+# read -> dedup -> append. One lock for both = no lock ordering, no deadlock. Fail
+# OPEN: if it can't be acquired, skip the sync and exit 0 — the entry stays in the
+# project's docs/skills.md and re-syncs on the next hook fire (retry by design).
+$claudeDir = Join-Path $env:USERPROFILE '.claude'
+try { if (-not (Test-Path $claudeDir)) { New-Item -ItemType Directory -Path $claudeDir -Force | Out-Null } } catch { exit 0 }
+$syncLock = Join-Path $claudeDir 'skill-trace-sync.lock'
+if (-not (Acquire-FileLock $syncLock)) { exit 0 }
+
+try {
+Record-Source $project_name
 
 # Global skills file
 $global_path = Join-Path $env:USERPROFILE '.claude\global-skills.md'
@@ -211,11 +217,12 @@ if ($provenance_edits.Count -gt 0) {
     Set-Content $global_path $global_content -Encoding UTF8
 }
 
-if ($new_entries.Count -eq 0) { exit 0 }
-
-# Bootstrap global file if it doesn't exist yet
-if (-not (Test-Path $global_path)) {
-    $init = @"
+# Guard, not early-exit, so the lock always releases via finally. Provenance
+# merges above already wrote; only genuinely new entries get appended.
+if ($new_entries.Count -gt 0) {
+    # Bootstrap global file if it doesn't exist yet
+    if (-not (Test-Path $global_path)) {
+        $init = @"
 # Global Skills Log
 <!-- skill-trace-schema: 1 -->
 
@@ -224,19 +231,21 @@ if (-not (Test-Path $global_path)) {
 > Search at http://localhost:38888
 
 "@
-    Set-Content $global_path $init -Encoding UTF8
+        Set-Content $global_path $init -Encoding UTF8
+    }
+
+    # Append each new entry with project attribution injected into the header line
+    foreach ($entry in $new_entries) {
+        $lines = $entry -split "`n"
+        $tagged_header = $lines[0].TrimEnd() + " <!-- $project_name -->"
+        $rest_lines    = if ($lines.Length -gt 1) { $lines[1..($lines.Length - 1)] } else { @() }
+        $body          = $rest_lines -join "`n"
+        $full_entry    = "`n" + $tagged_header + "`n`n" + $body.TrimStart("`n")
+        Add-Content $global_path $full_entry -Encoding UTF8
+    }
 }
-
-# Append each new entry with project attribution injected into the header line
-foreach ($entry in $new_entries) {
-    $lines = $entry -split "`n"
-    $tagged_header = $lines[0].TrimEnd() + " <!-- $project_name -->"
-    $rest_lines    = if ($lines.Length -gt 1) { $lines[1..($lines.Length - 1)] } else { @() }
-
-    $body          = $rest_lines -join "`n"
-
-    $full_entry    = "`n" + $tagged_header + "`n`n" + $body.TrimStart("`n")
-    Add-Content $global_path $full_entry -Encoding UTF8
+} finally {
+    Release-FileLock $syncLock
 }
 
 exit 0
