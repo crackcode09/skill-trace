@@ -73,6 +73,13 @@ function Register-Source([string]$slug) {
     if ([string]::IsNullOrWhiteSpace($slug)) { return }
     $trustPath = Join-Path $env:USERPROFILE '.claude\skill-trace-trust.txt'
     $lockPath  = "$trustPath.lock"
+    # Ensure ~/.claude exists before locking/writing (parity with the Python path's
+    # makedirs). Realistically always present, but defensive + makes the dir the
+    # single source of the path, never a literal.
+    try {
+        $trustDir = Split-Path $trustPath
+        if (-not (Test-Path $trustDir)) { New-Item -ItemType Directory -Path $trustDir -Force | Out-Null }
+    } catch { return }
 
     # Acquire a lock so the read-check-append critical section is serialized across
     # concurrent sessions (the OS gate only serializes ps1-vs-sh, not session-vs-session).
