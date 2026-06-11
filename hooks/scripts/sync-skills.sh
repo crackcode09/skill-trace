@@ -21,7 +21,7 @@ stdin=$(cat 2>/dev/null || true)
 
 # Pass JSON via env var to avoid quoting/escaping issues with special chars
 SKILL_TRACE_INPUT="$stdin" python3 << 'PYEOF'
-import sys, json, re, os, hashlib
+import sys, json, re, os, hashlib, time, datetime
 
 raw = os.environ.get('SKILL_TRACE_INPUT', '')
 
@@ -80,31 +80,15 @@ try:
 except Exception:
     pass
 
-# Record this source in the trust registry as UNTRUSTED if not already present.
-# Invariant: the hook only ever ADDS rows as 'no'. Trust is granted only by the
-# human (/skill-trust or manual edit), never here, never from synced content.
-# Capture is never gated on this; only Phase 2 injection reads it.
-def register_source(slug):
-    if not slug:
-        return
-    import time, datetime
-    trust_path = os.path.join(os.path.expanduser('~'), '.claude', 'skill-trace-trust.txt')
-    lock_path = trust_path + '.lock'
-    try:
-        os.makedirs(os.path.dirname(trust_path), exist_ok=True)
-    except Exception:
-        return
-
-    # Lock the read-check-append critical section across concurrent sessions.
-    # The OS gate only serializes ps1-vs-sh, not session-vs-session. Bounded retry;
-    # steal a stale lock; fall through best-effort if never acquired.
-    acquired = False
+# ── File lock: serialize the whole sync critical section across sessions.
+# Bounded retry; steal a lock older than 15s. One implementation guards both the
+# registry and the global log — never two divergent timeout rules.
+def acquire_lock(lock_path):
     for _ in range(50):
         try:
             fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             os.close(fd)
-            acquired = True
-            break
+            return True
         except FileExistsError:
             try:
                 if time.time() - os.path.getmtime(lock_path) > 15:
@@ -115,10 +99,25 @@ def register_source(slug):
             time.sleep(0.03)
         except OSError:
             break
+    return False
 
+def release_lock(lock_path):
     try:
-        is_new = not os.path.exists(trust_path)
-        if not is_new:
+        os.remove(lock_path)
+    except OSError:
+        pass
+
+# Record this source as UNTRUSTED if not already present. Caller holds the sync
+# lock. Invariant: only ever ADDS rows as 'no'. Trust is granted only by the human
+# (/skill-trust or manual edit), never here, never from synced content. Capture is
+# never gated on this; only Phase 2 injection reads it.
+def record_source(slug):
+    if not slug:
+        return
+    trust_path = os.path.join(os.path.expanduser('~'), '.claude', 'skill-trace-trust.txt')
+    try:
+        exists = os.path.exists(trust_path)
+        if exists:
             with open(trust_path, 'r', encoding='utf-8') as f:
                 for line in f.read().splitlines():
                     t = line.strip()
@@ -128,7 +127,7 @@ def register_source(slug):
                         return  # already recorded
         today = datetime.date.today().isoformat()
         with open(trust_path, 'a', encoding='utf-8') as f:
-            if is_new:
+            if not exists:
                 f.write(
                     '# skill-trace source trust registry\n'
                     '# columns: project-slug | trusted(yes|no) | first-seen | granted-at | granted-by\n'
@@ -139,14 +138,6 @@ def register_source(slug):
             f.write('{} | no | {} |  | \n'.format(slug, today))
     except Exception:
         pass
-    finally:
-        if acquired:
-            try:
-                os.remove(lock_path)
-            except OSError:
-                pass
-
-register_source(project_name)
 
 # Parse ## [...] or ## YYYY-MM-DD skill entry blocks
 # Normalize: add brackets if missing so global-skills.md stays consistent
@@ -168,19 +159,9 @@ if current is not None:
 if not entries:
     sys.exit(0)
 
-global_path = os.path.join(os.path.expanduser('~'), '.claude', 'global-skills.md')
-
-global_content = ''
-if os.path.exists(global_path):
-    try:
-        with open(global_path, 'r', encoding='utf-8') as f:
-            global_content = f.read()
-    except Exception:
-        pass
-
 # Content-hash dedup: key = bare_header + sha1(normalized_body)[:12]
-# Rename-proof, clone-proof, path-move-proof.
-# Two different lessons with the same title still both sync — their bodies differ.
+# Rename-proof, clone-proof, path-move-proof. Pure function — defined outside the
+# lock. Two lessons with the same title still both sync; their bodies differ.
 def entry_key(entry):
     lines = entry.split('\n')
     header = re.sub(r'\s*<!--.*?-->\s*$', '', lines[0].strip())
@@ -190,76 +171,101 @@ def entry_key(entry):
     h = hashlib.sha1(body.encode('utf-8')).hexdigest()[:12]
     return header + '|' + h
 
-# Build key→header map from existing global content
-existing_keys = {}
-if global_content:
-    for block in re.split(r'(?m)(?=^## \[?\d{4}-\d{2}-\d{2}\]?)', global_content):
-        block = block.strip()
-        if not block or not re.match(r'^## \[?\d{4}-\d{2}-\d{2}\]?', block):
-            continue
-        k = entry_key(block)
-        existing_keys[k] = block.split('\n')[0].strip()
-
-new_entries = []
-provenance_edits = []
-for entry in entries:
-    key = entry_key(entry)
-    if key in existing_keys:
-        existing_header = existing_keys[key]
-        m = re.search(r'<!--\s*(.+?)\s*-->', existing_header)
-        if m:
-            existing_projects = [p.strip() for p in m.group(1).split(',')]
-            if project_name not in existing_projects:
-                new_comment = '<!-- {} -->'.format(', '.join(existing_projects + [project_name]))
-                new_header = re.sub(r'<!--\s*.+?\s*-->', new_comment, existing_header)
-                provenance_edits.append((existing_header, new_header))
-    else:
-        new_entries.append(entry)
-
-# Apply provenance merges in one file rewrite
-if provenance_edits:
-    updated = global_content
-    for old_h, new_h in provenance_edits:
-        updated = updated.replace(old_h, new_h, 1)
-    try:
-        with open(global_path, 'w', encoding='utf-8') as f:
-            f.write(updated)
-        global_content = updated
-    except Exception:
-        pass
-
-if not new_entries:
-    sys.exit(0)
-
-# Bootstrap global file if it doesn't exist yet
-if not os.path.exists(global_path):
-    try:
-        os.makedirs(os.path.dirname(global_path), exist_ok=True)
-        init = (
-            '# Global Skills Log\n'
-            '<!-- skill-trace-schema: 1 -->\n\n'
-            '> Auto-synced from all project `docs/skills.md` files.\n'
-            '> Each entry is tagged with its source project.\n'
-            '> Search at http://localhost:38888\n\n'
-        )
-        with open(global_path, 'w', encoding='utf-8') as f:
-            f.write(init)
-        global_content = init
-    except Exception:
-        sys.exit(0)
-
-# Append each new entry with project attribution injected into the header line
+# Take ONE sync-wide lock over BOTH the trust-registry write and the global-log
+# read -> dedup -> append. One lock = no ordering, no deadlock. Fail OPEN: if it
+# can't be acquired, skip the sync and exit 0 — the entry stays in the project's
+# docs/skills.md and re-syncs on the next hook fire (retry by design).
+claude_dir = os.path.join(os.path.expanduser('~'), '.claude')
 try:
-    with open(global_path, 'a', encoding='utf-8') as f:
-        for entry in new_entries:
-            lines = entry.split('\n')
-            tagged_header = lines[0].rstrip() + ' <!-- {} -->'.format(project_name)
-            rest = lines[1:] if len(lines) > 1 else []
-            body = '\n'.join(rest).lstrip('\n')
-            full_entry = '\n' + tagged_header + '\n\n' + body
-            f.write(full_entry)
+    os.makedirs(claude_dir, exist_ok=True)
 except Exception:
     sys.exit(0)
+sync_lock = os.path.join(claude_dir, 'skill-trace-sync.lock')
+if not acquire_lock(sync_lock):
+    sys.exit(0)
+
+try:
+    record_source(project_name)
+
+    global_path = os.path.join(claude_dir, 'global-skills.md')
+
+    global_content = ''
+    if os.path.exists(global_path):
+        try:
+            with open(global_path, 'r', encoding='utf-8') as f:
+                global_content = f.read()
+        except Exception:
+            pass
+
+    # Build key->header map from existing global content
+    existing_keys = {}
+    if global_content:
+        for block in re.split(r'(?m)(?=^## \[?\d{4}-\d{2}-\d{2}\]?)', global_content):
+            block = block.strip()
+            if not block or not re.match(r'^## \[?\d{4}-\d{2}-\d{2}\]?', block):
+                continue
+            k = entry_key(block)
+            existing_keys[k] = block.split('\n')[0].strip()
+
+    new_entries = []
+    provenance_edits = []
+    for entry in entries:
+        key = entry_key(entry)
+        if key in existing_keys:
+            existing_header = existing_keys[key]
+            m = re.search(r'<!--\s*(.+?)\s*-->', existing_header)
+            if m:
+                existing_projects = [p.strip() for p in m.group(1).split(',')]
+                if project_name not in existing_projects:
+                    new_comment = '<!-- {} -->'.format(', '.join(existing_projects + [project_name]))
+                    new_header = re.sub(r'<!--\s*.+?\s*-->', new_comment, existing_header)
+                    provenance_edits.append((existing_header, new_header))
+        else:
+            new_entries.append(entry)
+
+    # Apply provenance merges in one file rewrite
+    if provenance_edits:
+        updated = global_content
+        for old_h, new_h in provenance_edits:
+            updated = updated.replace(old_h, new_h, 1)
+        try:
+            with open(global_path, 'w', encoding='utf-8') as f:
+                f.write(updated)
+            global_content = updated
+        except Exception:
+            pass
+
+    # Guard, not early-exit, so the lock always releases. Only genuinely new
+    # entries are appended; provenance merges above already wrote.
+    if new_entries:
+        ok = True
+        if not os.path.exists(global_path):
+            init = (
+                '# Global Skills Log\n'
+                '<!-- skill-trace-schema: 1 -->\n\n'
+                '> Auto-synced from all project `docs/skills.md` files.\n'
+                '> Each entry is tagged with its source project.\n'
+                '> Search at http://localhost:38888\n\n'
+            )
+            try:
+                with open(global_path, 'w', encoding='utf-8') as f:
+                    f.write(init)
+            except Exception:
+                ok = False
+        if ok:
+            try:
+                with open(global_path, 'a', encoding='utf-8') as f:
+                    for entry in new_entries:
+                        lines = entry.split('\n')
+                        tagged_header = lines[0].rstrip() + ' <!-- {} -->'.format(project_name)
+                        rest = lines[1:] if len(lines) > 1 else []
+                        body = '\n'.join(rest).lstrip('\n')
+                        full_entry = '\n' + tagged_header + '\n\n' + body
+                        f.write(full_entry)
+            except Exception:
+                pass
+finally:
+    release_lock(sync_lock)
 
 sys.exit(0)
 PYEOF
