@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [master, test]
+  pull_request:
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Zero runtime/dev dependencies — nothing to install. The suite validates
+      # the parser, dedup, schema marker, trust model + attack sim, and (per-OS)
+      # the sync-hook script syntax.
+      - name: Run tests
+        working-directory: viewer
+        run: npm test

@@ -1,9 +1,10 @@
 {
-    "version": "1.2.0",
+    "version": "1.2.1-dev",
     "name": "global-skills-viewer",
     "description": "Local web viewer for the global-skills log",
     "scripts": {
-        "start": "node server.js"
+        "start": "node server.js",
+        "test": "node --test"
     },
     "dependencies": {},
     "main": "server.js"

@@ -1,6 +1,6 @@
 {
   "name": "skill-trace",
-  "version": "1.2.0",
+  "version": "1.2.1-dev",
   "description": "Auto-syncs docs/skills.md entries to a global cross-project skills log. Includes a local web viewer on port 38888 with full-text search.",
   "author": {
     "name": "Nidhin Dileepkumar",
