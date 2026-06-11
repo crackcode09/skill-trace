@@ -65,6 +65,60 @@ try {
     }
 } catch {}
 
+# Record this source in the trust registry as UNTRUSTED if not already present.
+# Invariant: the hook only ever ADDS rows as 'no'. Trust is granted only by the
+# human (/skill-trust or manual edit), never here, never from synced content.
+# Capture is never gated on this; only Phase 2 injection reads it.
+function Register-Source([string]$slug) {
+    if ([string]::IsNullOrWhiteSpace($slug)) { return }
+    $trustPath = Join-Path $env:USERPROFILE '.claude\skill-trace-trust.txt'
+    $lockPath  = "$trustPath.lock"
+
+    # Acquire a lock so the read-check-append critical section is serialized across
+    # concurrent sessions (the OS gate only serializes ps1-vs-sh, not session-vs-session).
+    # Bounded retry; steal a stale lock; fall through best-effort if never acquired.
+    $acquired = $false
+    for ($i = 0; $i -lt 50; $i++) {
+        try {
+            $fs = [System.IO.File]::Open($lockPath, 'CreateNew', 'Write', 'None')
+            $fs.Close(); $acquired = $true; break
+        } catch {
+            try {
+                if ((Test-Path $lockPath) -and (((Get-Date) - (Get-Item $lockPath).LastWriteTime).TotalSeconds -gt 15)) {
+                    Remove-Item $lockPath -Force -ErrorAction SilentlyContinue; continue
+                }
+            } catch {}
+            Start-Sleep -Milliseconds 30
+        }
+    }
+
+    try {
+        $isNew = -not (Test-Path $trustPath)
+        if (-not $isNew) {
+            foreach ($line in (Get-Content $trustPath -Encoding UTF8)) {
+                $t = $line.Trim()
+                if ($t -eq '' -or $t.StartsWith('#')) { continue }
+                $key = ($t -split '\|')[0].Trim()
+                if ($key -eq $slug) { return }  # already recorded
+            }
+        } else {
+            $header = @"
+# skill-trace source trust registry
+# columns: project-slug | trusted(yes|no) | first-seen | granted-at | granted-by
+# The sync hook only ever ADDS rows as 'no'. Granting trust (no -> yes) is done
+# ONLY by you: the /skill-trust command or editing this file. Phase 2 injection
+# uses 'yes' rows only. Trust is never decided from synced file content.
+"@
+            Set-Content $trustPath $header -Encoding UTF8
+        }
+        $today = (Get-Date).ToString('yyyy-MM-dd')
+        Add-Content $trustPath ("$slug | no | $today |  | ") -Encoding UTF8
+    } catch {} finally {
+        if ($acquired) { Remove-Item $lockPath -Force -ErrorAction SilentlyContinue }
+    }
+}
+Register-Source $project_name
+
 # Parse ## [...] or ## YYYY-MM-DD skill entry blocks from content
 # Normalize: add brackets if missing so global-skills.md stays consistent
 $entries = [System.Collections.Generic.List[string]]::new()
@@ -133,7 +187,7 @@ foreach ($entry in $entries) {
                 $new_comment = "<!-- $(($existing_projects + $project_name) -join ', ') -->"
                 $provenance_edits.Add(@{
                     Old = $existing_header
-                    New = $existing_header -replace '<!--\s*.+?\s*-->', $new_comment
+                    New = ($existing_header -replace '<!--\s*.+?\s*-->', $new_comment)
                 })
             }
         }
@@ -156,6 +210,7 @@ if ($new_entries.Count -eq 0) { exit 0 }
 if (-not (Test-Path $global_path)) {
     $init = @"
 # Global Skills Log
+<!-- skill-trace-schema: 1 -->
 
 > Auto-synced from all project ``docs/skills.md`` files.
 > Each entry is tagged with its source project.

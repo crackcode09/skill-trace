@@ -1,0 +1,6 @@
+# Deterministic line endings regardless of contributor autocrlf settings.
+# Shell + JS must be LF or they break on the Linux/macOS CI legs.
+* text=auto eol=lf
+*.sh   text eol=lf
+*.js   text eol=lf
+*.ps1  text eol=crlf

@@ -80,6 +80,74 @@ try:
 except Exception:
     pass
 
+# Record this source in the trust registry as UNTRUSTED if not already present.
+# Invariant: the hook only ever ADDS rows as 'no'. Trust is granted only by the
+# human (/skill-trust or manual edit), never here, never from synced content.
+# Capture is never gated on this; only Phase 2 injection reads it.
+def register_source(slug):
+    if not slug:
+        return
+    import time, datetime
+    trust_path = os.path.join(os.path.expanduser('~'), '.claude', 'skill-trace-trust.txt')
+    lock_path = trust_path + '.lock'
+    try:
+        os.makedirs(os.path.dirname(trust_path), exist_ok=True)
+    except Exception:
+        return
+
+    # Lock the read-check-append critical section across concurrent sessions.
+    # The OS gate only serializes ps1-vs-sh, not session-vs-session. Bounded retry;
+    # steal a stale lock; fall through best-effort if never acquired.
+    acquired = False
+    for _ in range(50):
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            acquired = True
+            break
+        except FileExistsError:
+            try:
+                if time.time() - os.path.getmtime(lock_path) > 15:
+                    os.remove(lock_path)
+                    continue
+            except OSError:
+                pass
+            time.sleep(0.03)
+        except OSError:
+            break
+
+    try:
+        is_new = not os.path.exists(trust_path)
+        if not is_new:
+            with open(trust_path, 'r', encoding='utf-8') as f:
+                for line in f.read().splitlines():
+                    t = line.strip()
+                    if not t or t.startswith('#'):
+                        continue
+                    if t.split('|')[0].strip() == slug:
+                        return  # already recorded
+        today = datetime.date.today().isoformat()
+        with open(trust_path, 'a', encoding='utf-8') as f:
+            if is_new:
+                f.write(
+                    '# skill-trace source trust registry\n'
+                    '# columns: project-slug | trusted(yes|no) | first-seen | granted-at | granted-by\n'
+                    "# The sync hook only ever ADDS rows as 'no'. Granting trust (no -> yes) is done\n"
+                    '# ONLY by you: the /skill-trust command or editing this file. Phase 2 injection\n'
+                    "# uses 'yes' rows only. Trust is never decided from synced file content.\n"
+                )
+            f.write('{} | no | {} |  | \n'.format(slug, today))
+    except Exception:
+        pass
+    finally:
+        if acquired:
+            try:
+                os.remove(lock_path)
+            except OSError:
+                pass
+
+register_source(project_name)
+
 # Parse ## [...] or ## YYYY-MM-DD skill entry blocks
 # Normalize: add brackets if missing so global-skills.md stays consistent
 entries = []
@@ -168,7 +236,8 @@ if not os.path.exists(global_path):
     try:
         os.makedirs(os.path.dirname(global_path), exist_ok=True)
         init = (
-            '# Global Skills Log\n\n'
+            '# Global Skills Log\n'
+            '<!-- skill-trace-schema: 1 -->\n\n'
             '> Auto-synced from all project `docs/skills.md` files.\n'
             '> Each entry is tagged with its source project.\n'
             '> Search at http://localhost:38888\n\n'
