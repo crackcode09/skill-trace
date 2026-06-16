@@ -1,6 +1,6 @@
 ---
 name: log-lesson
-description: Use at session end, or when the user says "log that" / "log this lesson" / "save this to skills", to capture ONE genuinely reusable, non-obvious engineering lesson as a Problem/Solution/Takeaway entry in the project's docs/skills.md (the skill-trace sync hook then propagates it to the global cross-project log). Selects the single most transferable lesson, runs a trigger bar, checks the source's trust state, and enforces entry quality. Do not use for routine notes, task summaries, or project-specific facts.
+description: Use when the user asks to capture a lesson ("log that", "log this lesson", "save this to skills"), or when wrapping up a work session in which a genuinely reusable, non-obvious engineering lesson emerged, to write ONE Problem/Solution/Takeaway entry into the project's docs/skills.md (the skill-trace sync hook then propagates it to the global cross-project log). Selects the single most transferable lesson, runs a trigger bar, checks source trust, and enforces entry quality. Do not use for routine notes, task summaries, or project-specific facts.
 ---
 
 # Log Lesson
@@ -15,8 +15,11 @@ that is injected into future sessions.
 
 ## When this fires
 
-- At **session end** (a Stop-hook prompt like "anything reusable worth keeping?"), or
-- When the user **explicitly** says "log that", "log this lesson", "save this", etc.
+- When the user **explicitly** says "log that", "log this lesson", "save this", etc., or
+- When you are **wrapping up** a session in which a lesson clearly cleared the bar below.
+
+> Automatic session-end prompting via a Stop hook is a planned follow-up; today
+> the reliable triggers are the explicit request and your own end-of-work judgment.
 
 **Frequency governor:** target the *single best* lesson from the session. Hard
 cap of **2**, and only write a second if it is clearly distinct and high-value.
@@ -29,23 +32,39 @@ Run these in order. If any gate fails, stop — do not write.
 ### Step 0 — Trust gate (do this FIRST)
 
 An untrusted source must not author global lessons (the capture-side mirror of
-the Phase 2 injection gate). Determine the current project's slug the same way
-the sync hook does, then check the registry:
+the Phase 2 injection gate). The slug and the registry match **must be identical
+to what the sync hook and `trust.js` use**, or this gate checks the wrong row:
+the slug is the git remote's last path segment with `.git` stripped, else the
+**project root directory name**; the registry match is an **exact, case-sensitive**
+match on the first `|`-delimited field. Run it on this machine's shell:
 
-```bash
-# slug: git remote's last path segment (".git" stripped), else the project dir name
-slug=$(git config --get remote.origin.url 2>/dev/null | sed -E 's/\.git$//; s#^.*[/:]##')
-[ -z "$slug" ] && slug=$(basename "$PWD")
-# look it up in the trust registry (fixed path; written by the sync hook)
-grep -iE "^\s*${slug}\s*\|" "$HOME/.claude/skill-trace-trust.txt" 2>/dev/null
+**PowerShell** (Windows-primary here):
+
+```powershell
+$remote = git config --get remote.origin.url 2>$null
+if ($remote) { $slug = ($remote -replace '\.git$','') -replace '^.*[/:]','' }
+else { $slug = Split-Path -Leaf (git rev-parse --show-toplevel 2>$null); if (-not $slug) { $slug = Split-Path -Leaf $PWD } }
+$reg = Join-Path $HOME '.claude\skill-trace-trust.txt'
+if (Test-Path $reg) { Get-Content $reg | Where-Object { ($_ -split '\|')[0].Trim() -ceq $slug } }
 ```
 
-- Row shows `| yes |` → **trusted**, proceed.
-- Row shows `| no |`, or **no row / no file** (default-deny) → **untrusted.** Do
-  NOT write to `docs/skills.md` this session. If the lesson is worth keeping
-  locally, offer to note it in the project's own `CLAUDE.md` instead, and tell
-  the user the project must be granted trust (`node viewer/trust.js grant <slug>`
-  or `/skill-trust`) before its lessons can enter the global log.
+**bash:**
+
+```bash
+remote=$(git config --get remote.origin.url 2>/dev/null)
+if [ -n "$remote" ]; then slug=$(printf '%s' "${remote%.git}" | sed -E 's#^.*[/:]##')
+else slug=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")"); fi
+# exact, case-sensitive field match (NOT a loose/regex grep — must mirror trust.js)
+awk -F'|' -v s="$slug" '{h=$1; gsub(/^[ \t]+|[ \t]+$/,"",h)} h==s' "$HOME/.claude/skill-trace-trust.txt" 2>/dev/null
+```
+
+- Matched row shows `| yes |` → **trusted**, proceed.
+- Row shows `| no |`, or **no matching row / no file** (default-deny) →
+  **untrusted.** Do NOT write to `docs/skills.md` this session. If the lesson is
+  worth keeping locally, offer to note it in the project's own `CLAUDE.md`
+  instead, and tell the user to grant trust with **`/skill-trust grant <slug>`**
+  (or `node "$HOME/.claude/skills/skill-trace/viewer/trust.js" grant <slug>`)
+  before this project's lessons can enter the global log.
 
 ### Step 1 — Select the lesson and clear the trigger bar
 
@@ -92,18 +111,27 @@ Use that exact output in the header.
 
 ### Step 4 — Near-duplicate check
 
-Before writing, actually look — don't assume it's new. Search the global log for
-the lesson's key terms:
+The content-hash dedup only catches byte-identical bodies — it will **not** catch
+a lesson you reworded. So this keyword search is the *only* real defense against
+semantic duplicates: treat it as mandatory, not a courtesy. Actually look.
+
+**PowerShell:**
+
+```powershell
+$port = if ($env:GLOBAL_SKILLS_PORT) { $env:GLOBAL_SKILLS_PORT } else { 38888 }
+try { (Invoke-WebRequest "http://localhost:$port/api/skills?q=KEYWORDS" -UseBasicParsing).Content }
+catch { Select-String -Path (Join-Path $HOME '.claude\global-skills.md') -Pattern 'KEYWORDS' -SimpleMatch }
+```
+
+**bash:**
 
 ```bash
-# preferred: the viewer is usually already running
-curl -sf "http://localhost:38888/api/skills?q=<KEYWORDS>" 2>/dev/null
-# fallback if the viewer is down:
-grep -in "<KEYWORDS>" "$HOME/.claude/global-skills.md" 2>/dev/null
+PORT="${GLOBAL_SKILLS_PORT:-38888}"
+curl -sf "http://localhost:$PORT/api/skills?q=KEYWORDS" 2>/dev/null \
+  || grep -in "KEYWORDS" "$HOME/.claude/global-skills.md" 2>/dev/null
 ```
 
 If an entry already covers this lesson, **stop** — do not write a near-duplicate.
-(A changed title/date would create a duplicate the hash dedup can't catch.)
 
 ### Step 5 — Assign Stack tags from the controlled vocabulary
 
