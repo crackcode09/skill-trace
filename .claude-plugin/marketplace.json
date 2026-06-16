@@ -1,5 +1,8 @@
 {
   "name": "skill-trace",
+  "metadata": {
+    "description": "skill-trace — a curated, cross-project lessons-learned log for Claude Code, with a local search viewer."
+  },
   "owner": {
     "name": "Nidhin Dileepkumar",
     "email": "nidhin.dileepkumar@pbclinear.com"
