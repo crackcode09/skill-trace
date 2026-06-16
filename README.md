@@ -168,6 +168,48 @@ a full layout vs. a fragment.
 
 The PostToolUse hook fires on every save, appends to `~/.claude/global-skills.md`, and the viewer resyncs within 500ms. Open `http://localhost:38888` in a browser to search.
 
+You rarely write entries by hand — the **`log-lesson` skill** (below) does it for you.
+
+---
+
+## `// skills & commands`
+
+The plugin adds two skills and one slash command to Claude Code. Skills are invoked by Claude automatically when your request matches their description; you can also trigger one explicitly by name.
+
+### `log-lesson` — capture a lesson *(skill)*
+
+Captures **one** genuinely reusable, non-obvious lesson into the current project's `docs/skills.md` (the sync hook then propagates it to the global log). This is what makes the log fill itself — you don't maintain `docs/skills.md` by hand.
+
+- **Fires** when you say *"log that"*, *"log this lesson"*, *"save this to skills"*, or when Claude is wrapping up a session in which a lesson worth keeping emerged.
+- **Selective by design.** It logs only the single most transferable lesson (hard cap 2/session) and skips routine fixes, task summaries, and project-specific facts. Most sessions log nothing — that's correct.
+- **Safe by design.** It refuses to log secrets or real data, and an **untrusted source cannot author global lessons** (the capture-side mirror of trust — see `/skill-trust`). New `**Stack:**` tags are confirmed with you before being added to the vocabulary.
+
+```text
+You: "that lock bug was nasty — log what we learned"
+Claude: → log-lesson → writes a Problem/Solution/Takeaway entry to docs/skills.md
+```
+
+### `/gskills [query]` — search the global log *(skill)*
+
+Search every lesson you've ever logged, across all projects.
+
+```text
+/gskills                 # list all entries, most recent first
+/gskills powershell      # entries matching "powershell" (substring, all fields)
+```
+
+Also fires on phrasings like *"what do I know about X"* or *"search my skills log"*. (Requires the viewer running on port 38888 — it is, via the SessionStart hook.)
+
+### `/skill-trust [grant|revoke|list] [slug]` — manage source trust *(command)*
+
+Controls which source projects are trusted. The sync hook records every new source as `trusted=no`; trust is granted only by you. This gates both ends of the trust model: an untrusted source can't author global lessons (capture) and won't be injected into future sessions (planned Phase 2).
+
+```text
+/skill-trust list                # show the registry
+/skill-trust grant my-project    # trust a source (no -> yes)
+/skill-trust revoke my-project   # untrust it (yes -> no)
+```
+
 ---
 
 ## `// viewer`
