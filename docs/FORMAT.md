@@ -16,6 +16,8 @@ Both use the same entry format.
 ```markdown
 ## [YYYY-MM-DD] — Short title <!-- project-slug -->
 
+**Stack:** node, concurrency, locking
+
 **Problem:** What went wrong or what challenge was faced.
 
 **Solution:** What was done to solve it.
@@ -30,8 +32,35 @@ Rules:
 - The trailing HTML comment on the **header line** is **provenance** — a
   comma-separated list of source project slugs: `<!-- proj-a, proj-b -->`. Written
   and merged by the sync scripts; never hand-edited as a rule.
-- `**Problem:** / **Solution:** / **Takeaway:**` are the body sections. All
-  optional individually; the parser renders whatever is present.
+- `**Stack:**` (see below) is the first body line when present. `**Problem:** /
+  **Solution:** / **Takeaway:**` are the remaining body sections. All optional
+  individually; the parser renders whatever it recognizes.
+
+## Stack tags (controlled vocabulary)
+
+`**Stack:**` is a comma-separated, lowercase list of tags naming the technologies
+and concepts a lesson is about. It is the **relevance key** Phase 2 injection will
+score against (file-extension → tag mapping), so the vocabulary is controlled — it
+grows by deliberate addition, never by typo.
+
+**Authoring is gated by the `log-lesson` skill.** The skill reads this list before
+writing; an unrecognized tag is not written silently — it is confirmed with the
+user, and on approval added here in the same change, so vocabulary growth is an
+auditable diff.
+
+Current vocabulary:
+
+```text
+node, powershell, bash, python, sqlite, sql-server, css, html, http, git,
+claude-code, concurrency, locking, security, encoding, regex, testing,
+ci, hooks, parsing, performance, filesystem, api, markdown
+```
+
+Parsing/forward-compat: the current viewer parser (`parseMd`) extracts only
+Problem/Solution/Takeaway, so a `**Stack:**` line placed before `**Problem:**`
+rides through sync into the global log and the dedup hash untouched, and is simply
+not surfaced in the viewer UI yet. Explicit Stack parsing + extension→tag scoring
+land with Phase 2 — this section is the single source both will read.
 
 ## Dedup key
 
