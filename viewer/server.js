@@ -46,10 +46,15 @@ function parseMd(content) {
     if (!m) continue;
     const [, date, rawTitle, project = 'unknown'] = m;
     const body = block.split('\n').slice(1).join('\n');
+    const stackRaw = extractSection(body, 'Stack');
+    const stack = stackRaw
+      ? stackRaw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+      : [];
     entries.push({
       title:    rawTitle.trim(),
       date,
       projects: project.split(',').map(p => p.trim()),
+      stack,
       problem:  extractSection(body, 'Problem'),
       solution: extractSection(body, 'Solution'),
       takeaway: extractSection(body, 'Takeaway'),
@@ -177,7 +182,8 @@ function searchSkills(q, project) {
       s.title.toLowerCase().includes(lower) ||
       (s.problem  && s.problem.toLowerCase().includes(lower))  ||
       (s.solution && s.solution.toLowerCase().includes(lower)) ||
-      (s.takeaway && s.takeaway.toLowerCase().includes(lower))
+      (s.takeaway && s.takeaway.toLowerCase().includes(lower)) ||
+      (s.stack && s.stack.join(' ').includes(lower))
     );
   });
 }

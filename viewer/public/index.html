@@ -520,6 +520,84 @@ body {
 /* ── Loading shimmer ── */
 @keyframes shimmer { from { opacity: .35; } to { opacity: .7; } }
 .loading { animation: shimmer 1s ease-in-out infinite alternate; }
+
+/* ── Dashboard (group-by-Stack overview) ── */
+.hidden { display: none !important; }
+
+.dash-toggle {
+  display: flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 10px; flex-shrink: 0;
+  background: none; border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text-muted); cursor: pointer; font: inherit; font-size: 12px;
+  transition: color var(--trans), border-color var(--trans), background var(--trans);
+}
+.dash-toggle:hover { color: var(--text); border-color: var(--text-muted); background: var(--surface-alt); }
+.dash-toggle.active { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+.dash-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.dashboard {
+  flex: 1; overflow-y: auto; min-height: 0;
+  padding: 28px 32px; background: var(--bg);
+}
+.dash-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; margin-bottom: 22px; max-width: 760px;
+}
+.dash-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.dash-total { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tag-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  max-width: 920px;
+}
+.tag-card {
+  display: flex; flex-direction: column; gap: 12px;
+  text-align: left; padding: 16px 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer; font: inherit; color: inherit;
+  transition: transform 220ms cubic-bezier(.22,1,.36,1),
+              border-color var(--trans), background var(--trans), box-shadow var(--trans);
+  animation: cardIn 440ms cubic-bezier(.22,1,.36,1) both;
+  animation-delay: calc(var(--i) * 32ms);
+}
+.tag-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent);
+  background: var(--surface-alt);
+  box-shadow: 0 8px 22px rgba(0,0,0,.38);
+}
+.tag-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tag-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.tag-card-name {
+  font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 13px; font-weight: 500; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tag-card-count {
+  font-size: 22px; font-weight: 600; color: var(--accent);
+  font-variant-numeric: tabular-nums; line-height: 1; flex-shrink: 0;
+}
+.tag-card-meta { font-size: 11px; color: var(--text-muted); }
+.tag-card-preview {
+  font-size: 12.5px; color: var(--text-body); line-height: 1.55;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.tag-card-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 4px; }
+.tag-card-chip {
+  font-size: 10.5px; line-height: 1.5; padding: 1px 8px; border-radius: 999px;
+  background: var(--surface-alt); border: 1px solid var(--border-muted); color: var(--text-muted);
+  max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tag-card-chip.more { color: var(--text-faint); }
+.dash-hint { margin-top: 22px; font-size: 12px; color: var(--text-faint); }
+@keyframes cardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .tag-card { animation: none; }
+  .tag-card:hover { transform: none; }
+}
 </style>
 </head>
 <body>
@@ -554,6 +632,12 @@ body {
   </div>
 
   <div class="topbar-status" id="topbarStatus" aria-live="polite">Loading…</div>
+  <button type="button" class="dash-toggle" id="dashToggle" aria-pressed="false" title="Group lessons by Stack tag">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <line x1="4" y1="20" x2="4" y2="13"/><line x1="10" y1="20" x2="10" y2="5"/><line x1="16" y1="20" x2="16" y2="10"/>
+    </svg>
+    Dashboard
+  </button>
   <button type="button" class="refresh-btn" id="refreshBtn" title="Re-sync from global-skills.md" aria-label="Refresh skills database">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
       <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
@@ -582,6 +666,8 @@ body {
   </article>
 </div>
 
+<section id="dashboard" class="dashboard hidden" aria-label="Lessons by Stack tag"></section>
+
 <footer class="footer" role="contentinfo">
   <a href="http://localhost:38888">http://localhost:38888</a>
   <span class="footer-sep">·</span>
@@ -594,6 +680,8 @@ body {
 let allSkills     = [];
 let filtered      = [];
 let activeProject = 'All';
+let activeStack   = null;
+let dashboardMode = false;
 let activeId      = null;
 let searchTimer   = null;
 
@@ -668,6 +756,7 @@ function renderEntries(skills) {
   const list   = document.getElementById('entryList');
   const header = document.getElementById('entriesHeader');
   list.innerHTML = '';
+  header.textContent = activeStack ? `Stack: ${activeStack}` : 'Entries';
   list.appendChild(header);
 
   const count = skills.length;
@@ -769,6 +858,7 @@ function renderDetail(s) {
 
 async function selectProject(name) {
   activeProject = name;
+  activeStack = null;
   activeId = null;
   const q = document.getElementById('search').value.trim();
   filtered = await fetchSkills(q, name === 'All' ? '' : name);
@@ -796,6 +886,7 @@ document.getElementById('search').addEventListener('input', e => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(async () => {
     const q    = e.target.value.trim();
+    activeStack = null;
     const proj = activeProject === 'All' ? '' : activeProject;
     filtered   = await fetchSkills(q, proj);
     renderEntries(filtered);
@@ -815,6 +906,87 @@ document.addEventListener('keydown', e => {
     if (s.value) { s.value = ''; s.dispatchEvent(new Event('input')); }
   }
 });
+
+// ── Dashboard (group by Stack tag) ─────────────────────────────────────────────
+
+function renderDashboard() {
+  // Group lessons by Stack tag; keep a count and the most recent lesson title
+  // per tag so each card carries real, differentiating information.
+  const byTag = {};
+  for (const s of allSkills) {
+    for (const t of (s.stack || [])) {
+      const g = byTag[t] || (byTag[t] = { count: 0, latest: null, projects: new Set() });
+      g.count++;
+      for (const p of (s.projects || [])) g.projects.add(p);
+      if (!g.latest || s.date > g.latest.date) g.latest = { date: s.date, title: s.title };
+    }
+  }
+  const tags = Object.keys(byTag).sort((a, b) => byTag[b].count - byTag[a].count || a.localeCompare(b));
+  const dash = document.getElementById('dashboard');
+
+  if (!tags.length) {
+    dash.innerHTML =
+      '<div class="dash-head"><span class="dash-title">Lessons by Stack tag</span></div>' +
+      '<p class="empty-state">No <code>**Stack:**</code> tags yet. Entries written by the ' +
+      '<code>log-lesson</code> skill carry a Stack line; once you have a few, they group here.</p>';
+    return;
+  }
+
+  const cards = tags.map((t, i) => {
+    const g = byTag[t];
+    const noun = g.count === 1 ? 'lesson' : 'lessons';
+    const projs = [...g.projects];
+    const shown = projs.slice(0, 3);
+    const extra = projs.length - shown.length;
+    const chips = shown.map(p => `<span class="tag-card-chip">${esc(p)}</span>`).join('') +
+      (extra > 0 ? `<span class="tag-card-chip more">+${extra}</span>` : '');
+    const projLabel = projs.length === 1 ? '1 project' : `${projs.length} projects`;
+    return `<button type="button" class="tag-card" data-tag="${esc(t)}" style="--i:${i}"
+              aria-label="${esc(t)}: ${g.count} ${noun} across ${projLabel}">
+        <span class="tag-card-top">
+          <span class="tag-card-name">${esc(t)}</span>
+          <span class="tag-card-count">${g.count}</span>
+        </span>
+        <span class="tag-card-meta">${g.count} ${noun} · latest ${fmtDate(g.latest.date)}</span>
+        <span class="tag-card-preview">${esc(g.latest.title)}</span>
+        <span class="tag-card-chips">${chips}</span>
+      </button>`;
+  }).join('');
+
+  dash.innerHTML =
+    `<div class="dash-head">
+       <span class="dash-title">Lessons by Stack tag</span>
+       <span class="dash-total">${allSkills.length} lessons · ${tags.length} tags</span>
+     </div>
+     <div class="tag-grid">${cards}</div>
+     <p class="dash-hint">Click a tag to see its lessons.</p>`;
+
+  dash.querySelectorAll('.tag-card').forEach(card => {
+    card.addEventListener('click', () => drillStack(card.dataset.tag));
+  });
+}
+
+function toggleDashboard(on) {
+  dashboardMode = on;
+  document.getElementById('dashboard').classList.toggle('hidden', !on);
+  document.querySelector('.columns').classList.toggle('hidden', on);
+  const btn = document.getElementById('dashToggle');
+  btn.classList.toggle('active', on);
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  if (on) renderDashboard();
+}
+
+function drillStack(tag) {
+  activeStack   = tag;
+  activeProject = 'All';
+  activeId      = null;
+  toggleDashboard(false);
+  filtered = allSkills.filter(s => (s.stack || []).includes(tag));
+  renderProjects(filtered);
+  renderEntries(filtered);
+}
+
+document.getElementById('dashToggle').addEventListener('click', () => toggleDashboard(!dashboardMode));
 
 // ── Refresh button ────────────────────────────────────────────────────────────
 
