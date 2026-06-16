@@ -170,6 +170,10 @@ The PostToolUse hook fires on every save, appends to `~/.claude/global-skills.md
 
 You rarely write entries by hand — the **`log-lesson` skill** (below) does it for you.
 
+> **Using a different filename?** By default skill-trace syncs from `docs/skills.md`.
+> Set the `SKILL_TRACE_SOURCE_PATTERN` env var to a regex to opt another file in
+> (e.g. `LESSONS\.md$`). Unset, behavior is unchanged.
+
 ---
 
 ## `// skills & commands`

@@ -26,8 +26,12 @@ if ($null -eq $tool_input) { exit 0 }
 $file_path = $tool_input.file_path
 if ([string]::IsNullOrEmpty($file_path)) { exit 0 }
 
-# Only act on docs/skills.md writes
-if ($file_path -notmatch 'docs[/\\]skills\.md$') { exit 0 }
+# Only act on the configured source path. Default = docs/skills.md (unchanged
+# behavior). Set SKILL_TRACE_SOURCE_PATTERN to a regex to opt other files in
+# (e.g. 'LESSONS\.md$' or 'docs[/\\]skills\.md$|LESSONS\.md$'). Unset = default.
+$source_pattern = $env:SKILL_TRACE_SOURCE_PATTERN
+if ([string]::IsNullOrEmpty($source_pattern)) { $source_pattern = 'docs[/\\]skills\.md$' }
+if ($file_path -notmatch $source_pattern) { exit 0 }
 
 # Determine content to parse
 $content = ''
@@ -45,6 +49,11 @@ if ($tool_name -eq 'Write') {
 }
 
 if ([string]::IsNullOrEmpty($content)) { exit 0 }
+
+# Strip a leading UTF-8 BOM. A file authored/edited by an external editor can carry
+# one; left in place it prefixes the first '## ' header so the entry never matches
+# and the file parses to zero entries.
+$content = $content -replace "^$([char]0xFEFF)", ""
 
 # Infer project name: prefer git remote slug (stable across renames), fall back to folder name
 $normalized = $file_path -replace '\\', '/'

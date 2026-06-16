@@ -21,6 +21,16 @@ The adoption line: capture (Phase 1) now, in-session context injection (Phase 2)
   "No lessons yet" with the `log-lesson` hint and a format template instead of a
   blank pane. No-match searches and empty project filters keep their terse
   messages (the onboarding shows only when the log is genuinely empty).
+- **Configurable source path** — `SKILL_TRACE_SOURCE_PATTERN` (a regex) lets a
+  project sync from a file other than `docs/skills.md` (e.g. `LESSONS\.md$`).
+  **Backward-compatible: unset = the previous `docs/skills.md` behavior exactly**,
+  so existing projects are unaffected.
+
+### Fixed
+- **Leading UTF-8 BOM no longer zeroes a file.** An externally-edited
+  `docs/skills.md` (or the global log) carrying a BOM prefixed the first `## `
+  header, so it matched no entries and parsed to zero. The sync hooks (PowerShell
+  + Python) and the viewer parser now strip a leading BOM. Regression test added.
 
 ## [1.2.1-dev] — unreleased
 

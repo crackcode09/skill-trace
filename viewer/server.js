@@ -36,6 +36,7 @@ function extractSection(body, label) {
 const MD_HEADER_RE = /^## (\[?\d{4}-\d{2}-\d{2}\]?)/;
 
 function parseMd(content) {
+  content = content.replace(/^﻿/, ''); // strip leading UTF-8 BOM so the first '## ' header still matches
   const entries = [];
   const blocks = content.split(/(?=^## (?:\[?\d{4}-\d{2}-\d{2}\]?))/m)
     .filter(b => MD_HEADER_RE.test(b.trim()));
@@ -73,7 +74,7 @@ function entryKey(rawBlock) {
 
 function dedupeGlobal() {
   if (!existsSync(MD_PATH)) return { removed: 0, merged: 0 };
-  const raw = readFileSync(MD_PATH, 'utf8');
+  const raw = readFileSync(MD_PATH, 'utf8').replace(/^﻿/, '');
   const introMatch = raw.match(/^([\s\S]*?)(?=^## \[?\d{4}-\d{2}-\d{2}\]?)/m);
   const intro  = introMatch ? introMatch[1] : '';
   const blocks = raw.split(/(?=^## \[?\d{4}-\d{2}-\d{2}\]?)/m)

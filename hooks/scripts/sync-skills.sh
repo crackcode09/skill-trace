@@ -37,8 +37,11 @@ file_path  = tool_input.get('file_path', '')
 if not file_path:
     sys.exit(0)
 
-# Only act on docs/skills.md writes
-if not re.search(r'docs[/\\]skills\.md$', file_path):
+# Only act on the configured source path. Default = docs/skills.md (unchanged
+# behavior). Set SKILL_TRACE_SOURCE_PATTERN to a regex to opt other files in
+# (e.g. 'LESSONS\.md$'). Unset = default.
+source_pattern = os.environ.get('SKILL_TRACE_SOURCE_PATTERN') or r'docs[/\\]skills\.md$'
+if not re.search(source_pattern, file_path):
     sys.exit(0)
 
 # Determine content to parse
@@ -58,6 +61,11 @@ elif tool_name == 'Edit':
 
 if not content:
     sys.exit(0)
+
+# Strip a leading UTF-8 BOM. An externally-edited file can carry one; left in place
+# it prefixes the first '## ' header so the entry never matches and the file parses
+# to zero entries. (Reading as plain utf-8 does not strip it; utf-8-sig would.)
+content = content.lstrip('﻿')
 
 # Infer project name: prefer git remote slug (stable across renames), fall back to folder name
 normalized = file_path.replace('\\', '/')
