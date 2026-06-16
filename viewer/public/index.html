@@ -479,6 +479,10 @@ body {
   padding: 14px 16px;
 }
 .section-body p + p { margin-top: 10px; }
+.section-body ul { margin: 0; padding-left: 20px; }
+.section-body li { margin: 3px 0; }
+.section-body li::marker { color: var(--text-faint); }
+.section-body p + ul, .section-body ul + p { margin-top: 10px; }
 .section-body strong { color: var(--text); font-weight: 600; }
 .section-body code {
   background: var(--surface-alt);
@@ -614,12 +618,29 @@ function fmtDate(iso) {
   return `${MONTHS[m - 1]} ${d}, ${y}`;
 }
 
-function renderMd(html) {
-  return html
+function renderInline(s) {
+  return s
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
-    .replace(/\n\n+/g, '</p><p>')
-    .replace(/\n/g, '<br>');
+    .replace(/`([^`\n]+)`/g, '<code>$1</code>');
+}
+
+// Render a section body consistently regardless of how the source was wrapped:
+// blank lines separate paragraphs; a run of "- " lines becomes a real list;
+// single newlines inside a paragraph collapse to spaces (no ragged <br> breaks).
+function renderMd(text) {
+  return text.split(/\n\n+/).map(block => {
+    // A block is a bullet list if its first non-empty line starts with "- ".
+    // Continuation lines (wrapped bullets) fold into the current item.
+    if (/^\s*-\s+/.test(block.trimStart())) {
+      const items = [];
+      for (const line of block.split('\n')) {
+        if (/^\s*-\s+/.test(line)) items.push(line.replace(/^\s*-\s+/, '').trim());
+        else if (items.length && line.trim()) items[items.length - 1] += ' ' + line.trim();
+      }
+      return `<ul>${items.map(it => `<li>${renderInline(it)}</li>`).join('')}</ul>`;
+    }
+    return `<p>${renderInline(block.replace(/\s*\n\s*/g, ' ').trim())}</p>`;
+  }).join('');
 }
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
@@ -741,7 +762,7 @@ function makeSection(type, text) {
         <span class="section-dot" aria-hidden="true"></span>
         <span class="section-label">${type}</span>
       </div>
-      <div class="section-body"><p>${renderMd(esc(text))}</p></div>
+      <div class="section-body">${renderMd(esc(text))}</div>
     </div>
   `;
 }
