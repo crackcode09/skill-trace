@@ -27,6 +27,9 @@ that lands under the 1.3.0 tag when its code does. This release is plumbing only
   before writing (the Python path did via `makedirs`). Added the guard. A new
   **runtime** hook test spawns the real per-OS script and asserts the full chain
   (record → parse → append), the coverage that parse-only checks miss.
+- **Viewer favicon 404**: every page load logged a `GET /favicon.ico 404`
+  console error. Added an inline SVG `<link rel="icon">` to the viewer head,
+  reusing the existing brand `trace` glyph — zero new files, no server route.
 
 ### Known issues
 - The global-log append path is not yet lock-guarded (the trust registry is).
