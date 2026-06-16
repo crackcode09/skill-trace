@@ -46,6 +46,15 @@ test('bare (unbracketed) date header still parses', () => {
   assert.equal(e.title, 'No brackets');
 });
 
+test('parseMd strips a leading UTF-8 BOM so the first entry still parses', () => {
+  // An externally-edited skills.md can carry a BOM; without stripping it the
+  // first '## ' header never matches and the file parses to zero entries.
+  const bom = String.fromCharCode(0xFEFF);
+  const entries = parseMd(bom + '## [2026-06-10] — BOM entry <!-- repo-a -->\n\n**Problem:** x\n');
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].title, 'BOM entry');
+});
+
 test('schema marker: missing => v1; explicit value read', () => {
   assert.equal(readSchemaVersion('# no marker here'), 1);
   assert.equal(readSchemaVersion('<!-- skill-trace-schema: 2 -->'), 2);
