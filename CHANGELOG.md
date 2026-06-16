@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.3.0] — unreleased
+
+The adoption line: capture (Phase 1) now, in-session context injection (Phase 2) to follow.
+
+### Added
+- **`log-lesson` skill** (Phase 1) — captures one genuinely reusable, non-obvious
+  lesson per session as a Problem/Solution/Takeaway entry in the project's
+  `docs/skills.md`; the existing sync hook then propagates it to the global log.
+  Enforces a trigger bar (log only what would waste a competent engineer's time
+  next time), a **source-trust gate** (untrusted projects can't author global
+  lessons — the capture-side mirror of the Phase 2 injection gate), an
+  environment-sourced date, a near-duplicate check, and a controlled `**Stack:**`
+  tag vocabulary defined in `docs/FORMAT.md`. See `skills/log-lesson/`.
+- **`**Stack:**` entry field + controlled vocabulary** in `docs/FORMAT.md` — the
+  relevance key Phase 2 injection will score against. Forward-compatible: the
+  current viewer parser ignores it, so entries written now sync cleanly and gain
+  meaning when Phase 2 lands.
+
 ## [1.2.1-dev] — unreleased
 
 Foundations for the v1.3.0 adoption work. **No context-injection feature here** —
@@ -27,12 +45,11 @@ that lands under the 1.3.0 tag when its code does. This release is plumbing only
   before writing (the Python path did via `makedirs`). Added the guard. A new
   **runtime** hook test spawns the real per-OS script and asserts the full chain
   (record → parse → append), the coverage that parse-only checks miss.
-
-### Known issues
-- The global-log append path is not yet lock-guarded (the trust registry is).
-  Two sessions writing the same `docs/skills.md` simultaneously can append a
-  duplicate entry; content-hash dedup catches it on the next sync and `/api/dedupe`
-  cleans it. Locking that path is the next hardening step.
+- **Global-log append race**: the global-log append path is now guarded by the
+  same sync-wide lock the trust registry uses, on both Windows and POSIX. Two
+  sessions writing the same `docs/skills.md` concurrently can no longer append a
+  duplicate entry. (Previously a known issue; content-hash dedup was the only
+  backstop. A concurrent-fire test now reproduces the race and confirms the fix.)
 
 ### Changed
 - `server.js` and `trust.js` export their pure functions and only start a process
