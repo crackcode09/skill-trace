@@ -17,6 +17,10 @@ The adoption line: capture (Phase 1) now, in-session context injection (Phase 2)
   relevance key Phase 2 injection will score against. Forward-compatible: the
   current viewer parser ignores it, so entries written now sync cleanly and gain
   meaning when Phase 2 lands.
+- **First-run onboarding empty state** in the viewer — an empty log now shows
+  "No lessons yet" with the `log-lesson` hint and a format template instead of a
+  blank pane. No-match searches and empty project filters keep their terse
+  messages (the onboarding shows only when the log is genuinely empty).
 
 ## [1.2.1-dev] — unreleased
 
