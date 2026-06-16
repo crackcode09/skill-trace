@@ -27,6 +27,11 @@ The adoption line: capture (Phase 1) now, in-session context injection (Phase 2)
   so existing projects are unaffected.
 
 ### Fixed
+- **Consistent paragraph/list rendering in the entry detail.** `renderMd` turned
+  every source newline into `<br>`, so hard-wrapped text showed ragged mid-sentence
+  breaks and `- ` bullets rendered inline as plain text. Now blank lines separate
+  paragraphs, single newlines flow to the container, and a `- ` block becomes a
+  real list (folding wrapped continuation lines into each item).
 - **Leading UTF-8 BOM no longer zeroes a file.** An externally-edited
   `docs/skills.md` (or the global log) carrying a BOM prefixed the first `## `
   header, so it matched no entries and parsed to zero. The sync hooks (PowerShell
