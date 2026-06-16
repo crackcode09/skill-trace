@@ -50,6 +50,9 @@ that lands under the 1.3.0 tag when its code does. This release is plumbing only
   sessions writing the same `docs/skills.md` concurrently can no longer append a
   duplicate entry. (Previously a known issue; content-hash dedup was the only
   backstop. A concurrent-fire test now reproduces the race and confirms the fix.)
+- **Viewer favicon 404**: every page load logged a `GET /favicon.ico 404`
+  console error. Added an inline SVG `<link rel="icon">` to the viewer head,
+  reusing the existing brand `trace` glyph — zero new files, no server route.
 
 ### Changed
 - `server.js` and `trust.js` export their pure functions and only start a process
