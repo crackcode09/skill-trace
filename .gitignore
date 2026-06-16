@@ -5,6 +5,7 @@ viewer/node_modules/
 .env
 .superpowers/
 .playwright-mcp/
+.vscode/
 viewer/package-lock.json
 
 # Local dev logs stay local; product specs are published.
