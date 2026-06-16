@@ -319,6 +319,7 @@ The viewer proves value before investing in the harder PreToolUse context-inject
 skill-trace/
 ├── viewer/
 │   ├── server.js          # Node.js HTTP server (port 38888) — zero deps
+│   ├── trust.js           # source-trust registry CLI (grant/revoke/list)
 │   ├── package.json       # dependencies: {}
 │   └── public/
 │       └── index.html     # 3-column viewer UI
@@ -330,8 +331,17 @@ skill-trace/
 │       ├── start-viewer.ps1   # SessionStart: Windows viewer startup
 │       └── start-viewer.sh    # SessionStart: macOS/Linux viewer startup
 ├── skills/
-│   └── gskills/
-│       └── SKILL.md           # /gskills slash command — search global skills log
+│   ├── gskills/
+│   │   └── SKILL.md           # /gskills — search the global skills log
+│   └── log-lesson/
+│       └── SKILL.md           # capture one reusable lesson → docs/skills.md
+├── commands/
+│   └── skill-trust.md         # /skill-trust — grant/revoke/list source trust
+├── docs/
+│   ├── FORMAT.md              # on-disk entry format + Stack vocabulary (published)
+│   └── TRUST.md               # trust model (published)
+├── assets/
+│   └── icon.svg               # canonical brand mark (logo + favicon source)
 ├── .claude-plugin/
 │   └── plugin.json
 ├── LICENSE
