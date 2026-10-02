@@ -130,7 +130,7 @@ test('GET /api/lessons/:id returns one; DELETE removes it, tombstones it, regene
   } finally { srv.stop(); }
 });
 
-test('no legacy file and no store → empty, no crash; dedupe route reports store semantics once a store exists', async () => {
+test('no legacy file and no store → empty, no crash; a legacy file appearing later is migrated on sync; dedupe route is gone', async () => {
   const home = fs.mkdtempSync(join(tmpdir(), 'st-srv-'));
   const srv = await boot(home);
   try {
@@ -139,7 +139,7 @@ test('no legacy file and no store → empty, no crash; dedupe route reports stor
     fs.writeFileSync(join(home, 'global-skills.md'), LEGACY, 'utf8');
     await srv.api('/api/sync', { method: 'POST' });
     assert.equal((await srv.api('/api/skills')).length, 2);
-    const d = await srv.api('/api/dedupe', { method: 'POST' });
-    assert.equal(d.note, 'store dedups on write');
+    const gone = await fetch(`http://127.0.0.1:${srv.port}/api/dedupe`, { method: 'POST' });
+    assert.equal(gone.status, 404, 'legacy dedupe route removed; the store dedups on write');
   } finally { srv.stop(); }
 });

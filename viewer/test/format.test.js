@@ -13,7 +13,8 @@ const MD = join(mkdtempSync(join(tmpdir(), 'st-fmt-')), 'global-skills.md');
 process.env.GLOBAL_SKILLS_MD_PATH = MD;
 process.env.SKILL_TRACE_GLOBAL_STORE = join(mkdtempSync(join(tmpdir(), 'st-fmt-store-')), 'skill-trace');
 
-const { parseMd, readSchemaVersion, entryKey, dedupeGlobal, sync, searchSkills } = require('../server.js');
+const { parseMd, readSchemaVersion, sync, searchSkills } = require('../server.js');
+const { bodyHash } = require('../store.js');
 
 test('parseMd extracts title, date, sections, provenance', () => {
   const [e] = parseMd(
@@ -68,13 +69,12 @@ test('schema marker: missing => v1; explicit value read', () => {
   assert.equal(readSchemaVersion('<!-- skill-trace-schema: 2 -->'), 2);
 });
 
-test('entryKey keyed on body, ignores provenance comment (rename/clone proof)', () => {
-  const a = '## [2026-06-10] — Title <!-- repo-a -->\n\n**Problem:** same body';
-  const b = '## [2026-06-10] — Title <!-- repo-b -->\n\n**Problem:** same body';
-  assert.equal(entryKey(a), entryKey(b));
+test('lesson identity is the body hash: whitespace and provenance do not change it', () => {
+  assert.equal(bodyHash('**Problem:** same body\n'), bodyHash('  **Problem:** same body  \n\n'));
+  assert.notEqual(bodyHash('**Problem:** same body\n'), bodyHash('**Problem:** other body\n'));
 });
 
-test('dedupeGlobal collapses duplicate content and merges provenance', () => {
+test('a legacy file with duplicate content migrates to one lesson with merged provenance', () => {
   writeFileSync(MD,
 `# Global Skills Log
 <!-- skill-trace-schema: 1 -->
@@ -87,9 +87,7 @@ test('dedupeGlobal collapses duplicate content and merges provenance', () => {
 
 **Problem:** identical body
 `, 'utf8');
-  const res = dedupeGlobal();
-  assert.equal(res.removed, 1);
-  sync();
+  sync(); // first sync migrates the legacy file into the store, deduping by body hash
   const all = searchSkills('', '');
   assert.equal(all.length, 1);
   assert.deepEqual(all[0].projects.slice().sort(), ['repo-a', 'repo-b']);
