@@ -551,9 +551,24 @@ function syncProject(root, slug, { legacyMd, now } = {}) {
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
-function readStdin() { try { return fs.readFileSync(0, 'utf8'); } catch { return ''; } }
+// Read all of stdin. Async on purpose: a synchronous readFileSync(0) on a Windows
+// pipe is unreliable on older Node versions (returns empty / throws EOF), which
+// made the hook silently do nothing on Node 20 runners.
+function readStdin() {
+  return new Promise(resolve => {
+    let data = '';
+    const stdin = process.stdin;
+    stdin.setEncoding('utf8');
+    stdin.on('data', c => { data += c; });
+    stdin.on('end', () => resolve(data));
+    stdin.on('error', () => resolve(data));
+    if (stdin.isTTY) resolve('');
+  });
+}
 
-function cli(argv) {
+function debug(msg) { if (process.env.SKILL_TRACE_DEBUG) process.stderr.write(`skill-trace: ${msg}\n`); }
+
+async function cli(argv) {
   const [cmd, ...rest] = argv;
   const flags = Object.fromEntries(rest.filter(a => a.startsWith('--')).map(a => { const [k, v] = a.slice(2).split('='); return [k, v ?? true]; }));
   const args = rest.filter(a => !a.startsWith('--'));
@@ -570,7 +585,7 @@ function cli(argv) {
     }
     case 'create': {
       // JSON on stdin: { title, date, stack[], body, generated_by? , project? }
-      const input = JSON.parse(readStdin());
+      const input = JSON.parse(await readStdin());
       const slug = input.project || projectSlug(root);
       const l = createLesson(dir, { ...input, project: slug, generatedBy: input.generated_by || 'claude-code' });
       const r = flags.global ? (regenRollup(dir, rollupTarget), null) : syncProject(root, slug);
@@ -589,11 +604,12 @@ function cli(argv) {
       return out(syncProject(root, flags.slug && flags.slug !== true ? flags.slug : undefined));
     case 'hook': {
       // Claude Code PostToolUse event on stdin. Never fails loudly: hooks must be silent.
-      let event; try { event = JSON.parse(readStdin()); } catch { return; }
+      const raw = await readStdin();
+      let event; try { event = JSON.parse(raw); } catch { debug(`hook: stdin is not JSON (${raw.length} bytes)`); return; }
       const file = event && event.tool_input && event.tool_input.file_path;
-      if (!file) return;
+      if (!file) { debug('hook: event has no tool_input.file_path'); return; }
       const where = projectRoot(file);
-      if (!where) return;
+      if (!where) { debug(`hook: not a lessons file, ignored: ${file}`); return; }
       try { return out(syncProject(where.root, undefined, { legacyMd: where.legacyMd })); }
       catch (err) { process.stderr.write(`skill-trace hook: ${err.message}\n`); return; }
     }
@@ -604,7 +620,7 @@ function cli(argv) {
 }
 
 if (require.main === module) {
-  try { cli(process.argv.slice(2)); } catch (err) { process.stderr.write(`store: ${err.message}\n`); process.exit(1); }
+  cli(process.argv.slice(2)).catch(err => { process.stderr.write(`store: ${err.message}\n`); process.exit(1); });
 }
 
 module.exports = {
