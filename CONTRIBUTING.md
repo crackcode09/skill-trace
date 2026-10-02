@@ -19,8 +19,11 @@ Thanks for taking an interest in skill-trace. This is a small, intentionally sim
 git clone https://github.com/crackcode09/skill-trace
 cd skill-trace
 
-# Start the viewer server
-node viewer/server.js
+# Start the viewer server (or: node viewer/server.js)
+npm run dev
+
+# Or a throwaway instance on fictional demo data, port 38890
+npm run demo
 
 # Verify it works
 curl http://localhost:38888/api/skills

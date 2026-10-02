@@ -4,6 +4,8 @@
     "description": "Local web viewer for the global-skills log",
     "scripts": {
         "start": "node server.js",
+        "dev": "node server.js",
+        "demo": "node ../demo/run.js",
         "test": "node --test"
     },
     "dependencies": {},

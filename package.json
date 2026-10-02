@@ -1,0 +1,11 @@
+{
+  "name": "skill-trace",
+  "version": "1.2.1-dev",
+  "private": true,
+  "description": "Repo-root shortcuts. The runnable code lives in viewer/ and has zero dependencies.",
+  "scripts": {
+    "dev": "node viewer/server.js",
+    "demo": "node demo/run.js",
+    "test": "npm test --prefix viewer"
+  }
+}
