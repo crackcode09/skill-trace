@@ -312,7 +312,8 @@ The viewer proves value before investing in the harder PreToolUse context-inject
 | Version | Feature | Status |
 |---------|---------|--------|
 | v1.2.0 | Zero-dep server, Mac/Linux support, skill-trace rename | ✅ shipped |
-| v1.3.0 | PreToolUse hook — auto-inject relevant skills into Claude's context | planned |
+| v1.3.0 | `log-lesson` skill, trust registry, Stack tags + dashboard, viewer navigation & search overhaul, test suite + 3-OS CI | ✅ shipped |
+| v1.4.0 | PreToolUse hook — auto-inject relevant skills into Claude's context | planned |
 | v2.0.0 | Team sync — shared repo or API backend, multi-developer | planned |
 
 ---
@@ -375,7 +376,7 @@ MIT — see [LICENSE](LICENSE)
 <div align="center">
 
 ```
-skill-trace v1.2.1-dev · 2026-06-16 · MIT
+skill-trace v1.3.0 · 2026-10-02 · MIT
 ```
 
 </div>
