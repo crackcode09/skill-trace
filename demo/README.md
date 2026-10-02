@@ -6,6 +6,14 @@ without touching your real `~/.claude/global-skills.md`.
 
 ## Launch the demo viewer
 
+From the repo root:
+
+```bash
+npm run demo
+```
+
+Or by hand, if you prefer to see the moving parts:
+
 Run a throwaway viewer instance pointed at the demo file, on a separate port so
 it never collides with your real viewer on 38888:
 
