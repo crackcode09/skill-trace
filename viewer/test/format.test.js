@@ -93,3 +93,23 @@ test('dedupeGlobal collapses duplicate content and merges provenance', () => {
   assert.equal(all.length, 1);
   assert.deepEqual(all[0].projects.slice().sort(), ['repo-a', 'repo-b']);
 });
+
+test('searchSkills matches project slugs and Stack tags, not only title/body', () => {
+  writeFileSync(process.env.GLOBAL_SKILLS_MD_PATH, `<!-- skill-trace-schema: 1 -->
+
+## [2026-06-10] — Alpha <!-- sync-service -->
+
+**Stack:** node, encoding
+
+**Problem:** body one
+
+## [2026-06-11] — Beta <!-- inventory-portal -->
+
+**Problem:** body two
+`, 'utf8');
+  sync();
+  assert.deepEqual(searchSkills('sync-service', '').map(s => s.title), ['Alpha'], 'project slug');
+  assert.deepEqual(searchSkills('ENCODING', '').map(s => s.title), ['Alpha'], 'stack tag, case-insensitive');
+  assert.deepEqual(searchSkills('body two', '').map(s => s.title), ['Beta'], 'body text');
+  assert.deepEqual(searchSkills('nope', ''), [], 'no false positives');
+});

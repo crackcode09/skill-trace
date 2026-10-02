@@ -172,7 +172,9 @@ function startWatchers() {
   }
 }
 
-// ── Search: case-insensitive substring across all text fields ─────────────────
+// ── Search: case-insensitive substring across every field a user can see ──────
+// Title, the three body sections, Stack tags and project slugs. Anything shown
+// on an entry should be findable by typing it.
 
 function searchSkills(q, project) {
   const lower = q.toLowerCase();
@@ -183,7 +185,8 @@ function searchSkills(q, project) {
       (s.problem  && s.problem.toLowerCase().includes(lower))  ||
       (s.solution && s.solution.toLowerCase().includes(lower)) ||
       (s.takeaway && s.takeaway.toLowerCase().includes(lower)) ||
-      (s.stack && s.stack.join(' ').includes(lower))
+      (s.stack && s.stack.join(' ').includes(lower)) ||
+      s.projects.join(' ').toLowerCase().includes(lower)
     );
   });
 }
