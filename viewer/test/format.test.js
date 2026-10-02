@@ -55,6 +55,13 @@ test('parseMd strips a leading UTF-8 BOM so the first entry still parses', () =>
   assert.equal(entries[0].title, 'BOM entry');
 });
 
+test('parseMd extracts **Stack:** tags as a lowercased array; absent => []', () => {
+  const [withStack] = parseMd('## [2026-06-10] — Tagged <!-- repo-a -->\n\n**Stack:** Node, Concurrency , locking\n\n**Problem:** x\n');
+  assert.deepEqual(withStack.stack, ['node', 'concurrency', 'locking']);
+  const [noStack] = parseMd('## [2026-06-10] — Untagged <!-- repo-a -->\n\n**Problem:** x\n');
+  assert.deepEqual(noStack.stack, []);
+});
+
 test('schema marker: missing => v1; explicit value read', () => {
   assert.equal(readSchemaVersion('# no marker here'), 1);
   assert.equal(readSchemaVersion('<!-- skill-trace-schema: 2 -->'), 2);
@@ -85,4 +92,24 @@ test('dedupeGlobal collapses duplicate content and merges provenance', () => {
   const all = searchSkills('', '');
   assert.equal(all.length, 1);
   assert.deepEqual(all[0].projects.slice().sort(), ['repo-a', 'repo-b']);
+});
+
+test('searchSkills matches project slugs and Stack tags, not only title/body', () => {
+  writeFileSync(process.env.GLOBAL_SKILLS_MD_PATH, `<!-- skill-trace-schema: 1 -->
+
+## [2026-06-10] — Alpha <!-- sync-service -->
+
+**Stack:** node, encoding
+
+**Problem:** body one
+
+## [2026-06-11] — Beta <!-- inventory-portal -->
+
+**Problem:** body two
+`, 'utf8');
+  sync();
+  assert.deepEqual(searchSkills('sync-service', '').map(s => s.title), ['Alpha'], 'project slug');
+  assert.deepEqual(searchSkills('ENCODING', '').map(s => s.title), ['Alpha'], 'stack tag, case-insensitive');
+  assert.deepEqual(searchSkills('body two', '').map(s => s.title), ['Beta'], 'body text');
+  assert.deepEqual(searchSkills('nope', ''), [], 'no false positives');
 });

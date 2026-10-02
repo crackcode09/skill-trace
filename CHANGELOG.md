@@ -1,8 +1,8 @@
 # Changelog
 
-## [1.3.0] — unreleased
+## [1.3.0] — 2026-10-02
 
-The adoption line: capture (Phase 1) now, in-session context injection (Phase 2) to follow.
+The adoption release: capture (`log-lesson`) and the viewer that makes the log worth browsing. In-session context injection is next (v1.4.0). This section also absorbs the unreleased `1.2.1-dev` plumbing (schema marker, trust registry, tests, CI), which never shipped on its own.
 
 ### Added
 - **`log-lesson` skill** (Phase 1) — captures one genuinely reusable, non-obvious
@@ -25,24 +25,27 @@ The adoption line: capture (Phase 1) now, in-session context injection (Phase 2)
   project sync from a file other than `docs/skills.md` (e.g. `LESSONS\.md$`).
   **Backward-compatible: unset = the previous `docs/skills.md` behavior exactly**,
   so existing projects are unaffected.
-
-### Fixed
-- **Consistent paragraph/list rendering in the entry detail.** `renderMd` turned
-  every source newline into `<br>`, so hard-wrapped text showed ragged mid-sentence
-  breaks and `- ` bullets rendered inline as plain text. Now blank lines separate
-  paragraphs, single newlines flow to the container, and a `- ` block becomes a
-  real list (folding wrapped continuation lines into each item).
-- **Leading UTF-8 BOM no longer zeroes a file.** An externally-edited
-  `docs/skills.md` (or the global log) carrying a BOM prefixed the first `## `
-  header, so it matched no entries and parsed to zero. The sync hooks (PowerShell
-  + Python) and the viewer parser now strip a leading BOM. Regression test added.
-
-## [1.2.1-dev] — unreleased
-
-Foundations for the v1.3.0 adoption work. **No context-injection feature here** —
-that lands under the 1.3.0 tag when its code does. This release is plumbing only.
-
-### Added
+- **Dashboard view** in the viewer — a "group by Stack tag" overview: one card per
+  tag with its lesson count, the latest lesson title, and chips for the projects
+  that contributed it. Click a card to drill into that tag's lessons. Zero-dep
+  (CSS cards, no chart library). The parser now surfaces `**Stack:**` tags via the
+  API (`stack[]` on each entry), and search matches stack tags too. A `demo/`
+  fixture of fictional stack-tagged lessons ships for showcasing it.
+- **Viewer navigation & search overhaul.**
+  - Three-zone top bar: brand (click = Home) left, wide centred search with a live
+    `N of M` count inside it, controls right. A `List | Dashboard` segmented control
+    replaces the toggle button; refresh is a labelled **Sync** button.
+  - **Active-filter strip** under the bar on both views: one removable chip per
+    project / Stack filter, plus "Clear all". Drill-downs can be undone from the
+    strip, the entries header, `Esc`, or the logo.
+  - **Search covers everything you can see**: title, Problem/Solution/Takeaway,
+    Stack tags and project slugs. Typing keeps an active Stack filter; the
+    dashboard redraws as you type and groups only the lessons in view.
+  - Entry detail shows Stack tags as `#tag` badges; click one to drill in.
+  - Dashboard grid fills the viewport; below 900px the search takes its own row.
+- **`npm run dev` / `npm run demo` / `npm test`** from the repo root (private root
+  `package.json`, no dependencies). `demo/run.js` launches a throwaway viewer on the
+  fictional demo log at port 38890.
 - **Schema versioning** — file-level `<!-- skill-trace-schema: 1 -->` marker;
   parser treats a missing marker as v1 and warns (never crashes) on a newer one.
   Per-entry override reserved for v2+ in the spec. See `docs/FORMAT.md`.
@@ -55,6 +58,19 @@ that lands under the 1.3.0 tag when its code does. This release is plumbing only
 - **CI** — GitHub Actions matrix on ubuntu + windows + macos.
 
 ### Fixed
+- **Consistent paragraph/list rendering in the entry detail.** `renderMd` turned
+  every source newline into `<br>`, so hard-wrapped text showed ragged mid-sentence
+  breaks and `- ` bullets rendered inline as plain text. Now blank lines separate
+  paragraphs, single newlines flow to the container, and a `- ` block becomes a
+  real list (folding wrapped continuation lines into each item).
+- **Leading UTF-8 BOM no longer zeroes a file.** An externally-edited
+  `docs/skills.md` (or the global log) carrying a BOM prefixed the first `## `
+  header, so it matched no entries and parsed to zero. The sync hooks (PowerShell
+  + Python) and the viewer parser now strip a leading BOM. Regression test added.
+- **Sync button never synced**: it called `GET /api/sync`, which the server
+  rejects with 405. Now `POST`.
+- **Stale detail pane**: after a search removed the selected entry from the list,
+  the right pane kept showing it. The first result is selected instead.
 - **Windows PowerShell 5.1 parse failure** in `sync-skills.ps1`: a `@{ }` hashtable
   used as a method-call argument swallowed `-replace`'s comma, so the entire
   provenance-merge path was dead on Windows. Wrapped the operator in parens. This
