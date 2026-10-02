@@ -1,5 +1,5 @@
 {
-    "version": "1.4.0-dev",
+    "version": "1.4.0",
     "name": "global-skills-viewer",
     "description": "Local web viewer for the global-skills log",
     "scripts": {

@@ -1,10 +1,16 @@
 # Changelog
 
-## [1.4.0] — unreleased
+## [1.4.0] — 2026-10-02
 
-The store release: one OKF-style file per lesson, typed frontmatter, a single
-write path, delete with tombstones, and migration from the single-file log.
-Spec: `docs/superpowers/specs/2026-10-02-okf-lesson-store-design.md`.
+The store release: one OKF-style file per lesson with a typed header, a project
+store that travels with the repo and a trust-gated global store, a single write
+path, delete with tombstones, and automatic migration from the single-file log.
+
+**Upgrading from 1.3.0:** nothing to do. On first start the viewer migrates
+`~/.claude/global-skills.md` into `~/.claude/skill-trace/lessons/`, keeps the
+original as `global-skills.legacy-<date>.md`, and regenerates `global-skills.md`
+as a read-only rollup. Each project migrates the same way the first time a lesson
+is saved there. The hooks now call `node`, which the viewer already required.
 
 ### Added
 - **`viewer/store.js`** — zero-dependency lesson store module (schema 2): ULID ids,
@@ -43,6 +49,7 @@ Spec: `docs/superpowers/specs/2026-10-02-okf-lesson-store-design.md`.
 - **Hand edits stay safe.** Entries typed into either rollup are absorbed into the
   store on the next save; a hand-edited lesson file is re-blessed (hash refreshed)
   and, for a trusted project, mirrored globally — the project copy is the author.
+- **`/api/dedupe` removed** — the store dedups on write; nothing calls it.
 - **Delete from the viewer.** A Delete action on the entry detail with an inline
   two-step confirm. `DELETE /api/lessons/:id` removes the file from the global
   store, records a tombstone so a re-sync cannot bring it back, regenerates the
