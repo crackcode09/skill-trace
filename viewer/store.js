@@ -104,6 +104,7 @@ function parseList(raw) {
 
 function quoteIfNeeded(s) {
   s = String(s);
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(s)) return s; // ISO timestamps read fine unquoted
   if (s === '' || /[:#\[\]{}"'\n]|^\s|\s$|^[-?&*!|>%@`]/.test(s)) return JSON.stringify(s);
   return s;
 }

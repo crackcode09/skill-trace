@@ -519,6 +519,21 @@ body {
 .badge.stack::before { content: '#'; color: var(--text-muted); margin-right: 1px; }
 .badge.stack:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
 .badge.stack:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Metadata panel: the lesson's frontmatter, exactly as on disk */
+details.meta { margin: 0 0 16px; }
+details.meta summary {
+  cursor: pointer; font-size: 12px; color: var(--text-muted); user-select: none;
+  display: flex; align-items: center; gap: 8px;
+}
+details.meta summary:hover { color: var(--text); }
+details.meta summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+details.meta pre {
+  margin: 8px 0 0; padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 12px; line-height: 1.55; color: var(--text-body); white-space: pre-wrap; word-break: break-word;
+}
+.meta-flag { color: #e3b341; font-weight: 500; }
+.meta-seen { color: var(--accent); font-weight: 500; }
 .badge.date {
   color: var(--accent);
   border-color: rgba(88,166,255,.25);
@@ -980,6 +995,10 @@ function renderDetail(s) {
 
   document.getElementById('detailPanel').innerHTML = `
     <div class="detail-inner">
+      ${s.meta ? `<details class="meta"${s.edited ? ' open' : ''}>
+        <summary>Metadata${s.edited ? ' <span class="meta-flag">edited outside the tool</span>' : ''}${s.seen > 1 ? ` <span class="meta-seen">seen ×${s.seen}</span>` : ''}</summary>
+        <pre>${esc(s.meta)}</pre>
+      </details>` : ''}
       <h1 class="detail-title">${esc(s.title)}</h1>
       <div class="detail-badges">
         <span class="badge">${esc(s.projects.join(', '))}</span>
@@ -1030,7 +1049,7 @@ async function selectProject(name) {
 function selectEntry(s) {
   activeId = s.id;
   document.querySelectorAll('.entry-item').forEach(el => {
-    el.classList.toggle('active', Number(el.dataset.id) === activeId);
+    el.classList.toggle('active', el.dataset.id === String(activeId));
   });
   renderDetail(s);
 }

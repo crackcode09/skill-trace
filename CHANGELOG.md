@@ -15,6 +15,16 @@ Spec: `docs/superpowers/specs/2026-10-02-okf-lesson-store-design.md`.
   compatibility + OKF `index.md`), and idempotent `migrateLegacy` that renames —
   never deletes — the old file. CLI: `node viewer/store.js status|create|delete|regen|migrate`.
   **Not yet wired** into the server, hooks or skills; that follows in the next PRs.
+- **Viewer reads the lesson store.** `server.js` now loads `~/.claude/skill-trace/lessons`
+  instead of parsing `global-skills.md`. On first start a legacy single file is
+  migrated automatically (split into lesson files, renamed to `*.legacy-<date>.md`,
+  rollup regenerated in place). Until the hooks write to the store directly, entries
+  they append to the rollup are absorbed on the next sync. API entries carry `id`
+  (ULID), `seen`, `edited` and `meta`. The demo launcher copies the fixture to a temp
+  store so `demo/skills-demo.md` stays pristine.
+- **Metadata panel** in the entry detail — a collapsible block showing the lesson's
+  frontmatter exactly as on disk, with `seen ×N` and an `edited outside the tool`
+  flag when the body hash no longer matches.
 - `viewer/test/store.test.js` — 9 behaviour tests (round-trip, ulid, edited flag,
   upsert semantics, tombstones, migration, rollup parse-back, bad-file skip, paths).
 
