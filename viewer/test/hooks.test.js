@@ -29,6 +29,7 @@ function envFor(home) {
   const [, , homeVar] = hookCmd();
   const env = { ...process.env, [homeVar]: home, HOME: home, USERPROFILE: home };
   for (const k of Object.keys(env)) if (/^(SKILL_TRACE_|GLOBAL_SKILLS_)/.test(k)) delete env[k];
+  env.SKILL_TRACE_NODE = process.execPath; // the wrapper runs the same node that runs this test
   return env;
 }
 
