@@ -42,6 +42,17 @@ test('projectRoot recognizes docs/skills.md, lesson files, the opt-in pattern, a
   delete process.env.SKILL_TRACE_SOURCE_PATTERN;
 });
 
+test('hook CLI tolerates a UTF-8 BOM on stdin (PowerShell 5.1 pipes one)', () => {
+  const { spawnSync } = require('node:child_process');
+  const root = project('bom-proj');
+  fs.writeFileSync(join(root, 'docs', 'skills.md'), ENTRY, 'utf8');
+  const event = JSON.stringify({ tool_name: 'Write', tool_input: { file_path: join(root, 'docs', 'skills.md') } });
+  const r = spawnSync(process.execPath, [join(__dirname, '..', 'store.js'), 'hook'], { input: '﻿' + event, encoding: 'utf8', env: { ...process.env } });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /"projectLessons": 1/);
+  assert.equal(files(join(root, '.claude', 'skill-trace')).length, 1);
+});
+
 test('projectSlug falls back to the folder name outside git', () => {
   const root = project('fallback-name');
   assert.equal(S.projectSlug(root), 'fallback-name');

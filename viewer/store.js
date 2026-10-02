@@ -560,8 +560,10 @@ function readStdin() {
     const stdin = process.stdin;
     stdin.setEncoding('utf8');
     stdin.on('data', c => { data += c; });
-    stdin.on('end', () => resolve(data));
-    stdin.on('error', () => resolve(data));
+    // PowerShell 5.1 may prepend a UTF-8 BOM when piping into a native command.
+    const done = () => resolve(data.replace(/^﻿/, ''));
+    stdin.on('end', done);
+    stdin.on('error', done);
     if (stdin.isTTY) resolve('');
   });
 }
