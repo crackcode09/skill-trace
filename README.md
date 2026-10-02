@@ -376,7 +376,7 @@ MIT — see [LICENSE](LICENSE)
 <div align="center">
 
 ```
-skill-trace v1.3.0 · 2026-10-02 · MIT
+skill-trace v1.4.0-dev · 2026-10-02 · MIT
 ```
 
 </div>

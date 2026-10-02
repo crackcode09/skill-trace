@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.4.0] — unreleased
+
+The store release: one OKF-style file per lesson, typed frontmatter, a single
+write path, delete with tombstones, and migration from the single-file log.
+Spec: `docs/superpowers/specs/2026-10-02-okf-lesson-store-design.md`.
+
+### Added
+- **`viewer/store.js`** — zero-dependency lesson store module (schema 2): ULID ids,
+  body hash (hand-edit detection), frontmatter parse/serialize, `createLesson`,
+  `upsertGlobal` (dedup by id → hash → same title within 7 days; merges
+  provenance; bumps `seen` on recurrence; honours tombstones), `deleteLesson`,
+  rollup regeneration (schema-1 `skills.md` / `global-skills.md` for grep
+  compatibility + OKF `index.md`), and idempotent `migrateLegacy` that renames —
+  never deletes — the old file. CLI: `node viewer/store.js status|create|delete|regen|migrate`.
+  **Not yet wired** into the server, hooks or skills; that follows in the next PRs.
+- `viewer/test/store.test.js` — 9 behaviour tests (round-trip, ulid, edited flag,
+  upsert semantics, tombstones, migration, rollup parse-back, bad-file skip, paths).
+
 ## [1.3.0] — 2026-10-02
 
 The adoption release: capture (`log-lesson`) and the viewer that makes the log worth browsing. In-session context injection is next (v1.4.0). This section also absorbs the unreleased `1.2.1-dev` plumbing (schema marker, trust registry, tests, CI), which never shipped on its own.
