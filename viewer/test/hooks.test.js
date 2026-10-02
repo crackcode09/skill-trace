@@ -32,9 +32,14 @@ function envFor(home) {
   return env;
 }
 
+// Returns the hook's combined output so a failing assertion can show what the
+// wrapper and node actually said (CI runners differ from dev machines).
 function runHook(home, payload) {
   const [cmd, args] = hookCmd();
-  execFileSync(cmd, args, { input: JSON.stringify(payload), env: envFor(home), stdio: ['pipe', 'pipe', 'pipe'] });
+  const r = require('node:child_process').spawnSync(cmd, args, { input: JSON.stringify(payload), env: envFor(home), encoding: 'utf8' });
+  const out = `exit=${r.status}\nSTDOUT:\n${r.stdout}\nSTDERR:\n${r.stderr}`;
+  runHook.last = out;
+  return out;
 }
 
 function runHookAsync(home, payload) {
@@ -69,7 +74,7 @@ test('untrusted project: lesson lands in the project store, source recorded as n
   runHook(home, { tool_name: 'Write', tool_input: { file_path: skills, content: ENTRY } });
 
   const pstore = join(proj, '.claude', 'skill-trace');
-  assert.equal(lessonFiles(pstore).length, 1, 'one lesson file in the project store');
+  assert.equal(lessonFiles(pstore).length, 1, 'one lesson file in the project store\n' + runHook.last);
   const lesson = readFileSync(join(pstore, 'lessons', lessonFiles(pstore)[0]), 'utf8');
   assert.match(lesson, /^---\nid: [0-9A-Z]{26}\n/, 'schema-2 frontmatter');
   assert.match(lesson, /\nprojects: \[myproj\]\n/, 'slug derived from the folder (no git remote)');
