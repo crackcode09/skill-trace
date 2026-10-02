@@ -9,7 +9,7 @@ Thanks for taking an interest in skill-trace. This is a small, intentionally sim
 - Keep it simple. No new dependencies without a strong reason.
 - One concern per PR. Don't bundle unrelated fixes.
 - Test your change manually before opening a PR — `node viewer/server.js` and verify `/api/skills` returns entries.
-- Branch protection is on `master` — all changes go through a PR.
+- Branch protection is on `dev` and `master` — all changes go through a PR, and CI must be green on all three OSes before merge.
 
 ---
 
@@ -71,17 +71,21 @@ Bigger items (check roadmap in README first):
 ## `// branch + PR flow`
 
 ```
-master  ←  your PR  ←  feat/your-feature-name
+master  ←  PR from dev only  ←  dev  ←  your PR  ←  feat/your-feature-name
 ```
 
+`dev` is the permanent integration branch. Every change lands there first; `master` is
+what the plugin marketplace installs, so it only moves when `dev` is promoted by PR.
+
 1. Fork the repo
-2. Create a branch: `feat/your-feature` or `fix/your-fix`
-3. Make your change, test it
-4. Open a PR against `master`
-5. 1 approval required to merge
+2. Branch from `dev`: `feat/your-feature` or `fix/your-fix` — never a `dev/...` or `master/...`
+   prefix (git stores branches as paths, so those names collide with the `dev` and `master` branches)
+3. Make your change and test it locally (`npm test` in `viewer/`, then run the viewer)
+4. Open a PR against `dev` — CI runs on ubuntu, windows and macos and must be green
+5. Once `dev` has been exercised locally, promote it with a `dev → master` PR
 
 Commit format: `type: short description`
-Types: `feat`, `fix`, `style`, `refactor`, `docs`, `config`
+Types: `feat`, `fix`, `style`, `refactor`, `docs`, `security`, `config`
 
 ---
 

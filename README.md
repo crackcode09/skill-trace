@@ -362,7 +362,7 @@ The codebase is intentionally simple — `viewer/server.js` is ~110 lines with n
 1. Fork the repo
 2. Add your entry format support, search improvements, or platform-specific hook scripts
 3. Test: `node viewer/server.js` — verify `GET /api/skills` returns entries
-4. Open a PR
+4. Open a PR against `dev`
 
 ---
 

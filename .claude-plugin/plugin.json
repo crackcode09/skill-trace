@@ -4,20 +4,10 @@
   "description": "Auto-syncs docs/skills.md entries to a global cross-project skills log. Includes a local web viewer on port 38888 with full-text search.",
   "author": {
     "name": "Nidhin Dileepkumar",
-    "email": "nidhin.dileepkumar@pbclinear.com"
+    "email": "nidhin.pbclinear@gmail.com"
   },
   "homepage": "https://github.com/crackcode09/skill-trace",
   "repository": "https://github.com/crackcode09/skill-trace",
   "license": "MIT",
-  "keywords": ["skills", "knowledge", "institutional-memory", "developer-tools", "claude-code"],
-  "skills": [
-    {
-      "name": "gskills",
-      "path": "skills/gskills/SKILL.md"
-    },
-    {
-      "name": "log-lesson",
-      "path": "skills/log-lesson/SKILL.md"
-    }
-  ]
+  "keywords": ["skills", "knowledge", "institutional-memory", "developer-tools", "claude-code"]
 }
