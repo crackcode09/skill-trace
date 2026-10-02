@@ -55,6 +55,13 @@ test('parseMd strips a leading UTF-8 BOM so the first entry still parses', () =>
   assert.equal(entries[0].title, 'BOM entry');
 });
 
+test('parseMd extracts **Stack:** tags as a lowercased array; absent => []', () => {
+  const [withStack] = parseMd('## [2026-06-10] — Tagged <!-- repo-a -->\n\n**Stack:** Node, Concurrency , locking\n\n**Problem:** x\n');
+  assert.deepEqual(withStack.stack, ['node', 'concurrency', 'locking']);
+  const [noStack] = parseMd('## [2026-06-10] — Untagged <!-- repo-a -->\n\n**Problem:** x\n');
+  assert.deepEqual(noStack.stack, []);
+});
+
 test('schema marker: missing => v1; explicit value read', () => {
   assert.equal(readSchemaVersion('# no marker here'), 1);
   assert.equal(readSchemaVersion('<!-- skill-trace-schema: 2 -->'), 2);

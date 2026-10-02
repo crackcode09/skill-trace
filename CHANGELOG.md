@@ -25,6 +25,12 @@ The adoption line: capture (Phase 1) now, in-session context injection (Phase 2)
   project sync from a file other than `docs/skills.md` (e.g. `LESSONS\.md$`).
   **Backward-compatible: unset = the previous `docs/skills.md` behavior exactly**,
   so existing projects are unaffected.
+- **Dashboard view** in the viewer — a "group by Stack tag" overview: one card per
+  tag with its lesson count, the latest lesson title, and chips for the projects
+  that contributed it. Click a card to drill into that tag's lessons. Zero-dep
+  (CSS cards, no chart library). The parser now surfaces `**Stack:**` tags via the
+  API (`stack[]` on each entry), and search matches stack tags too. A `demo/`
+  fixture of fictional stack-tagged lessons ships for showcasing it.
 
 ### Fixed
 - **Consistent paragraph/list rendering in the entry detail.** `renderMd` turned
