@@ -973,6 +973,20 @@ function renderDetail(s) {
 
 // ── Interactions ──────────────────────────────────────────────────────────────
 
+// Single source of truth for "what is in view": the server applies search +
+// project, the Stack drill-down (client-side) narrows on top. Every path that
+// changes search text or re-syncs goes through here, so the Sync button, the
+// search box and the Stack filter can never disagree about the rules.
+async function applyView() {
+  const q    = document.getElementById('search').value.trim();
+  const proj = activeProject === 'All' ? '' : activeProject;
+  let rows = await fetchSkills(q, proj);
+  if (activeStack) rows = rows.filter(s => (s.stack || []).includes(activeStack));
+  filtered = rows;
+  renderProjects(filtered);
+  renderEntries(filtered);
+}
+
 async function selectProject(name) {
   activeProject = name;
   activeStack = null;
@@ -1001,14 +1015,7 @@ function selectEntry(s) {
 
 document.getElementById('search').addEventListener('input', e => {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(async () => {
-    const q    = e.target.value.trim();
-    activeStack = null;
-    const proj = activeProject === 'All' ? '' : activeProject;
-    filtered   = await fetchSkills(q, proj);
-    renderEntries(filtered);
-    renderProjects(filtered);
-  }, 250);
+  searchTimer = setTimeout(applyView, 250);
 });
 
 document.addEventListener('keydown', e => {
@@ -1132,10 +1139,7 @@ function drillStack(tag) {
   activeStack = tag;
   activeId    = null;
   toggleDashboard(false);
-  const scope = activeProject === 'All' ? allSkills : allSkills.filter(s => s.projects.includes(activeProject));
-  filtered = scope.filter(s => (s.stack || []).includes(tag));
-  renderProjects(filtered);
-  renderEntries(filtered);
+  applyView();
 }
 
 document.getElementById('dashToggle').addEventListener('click', () => { if (!dashboardMode) toggleDashboard(true); });
@@ -1183,18 +1187,9 @@ document.getElementById('refreshBtn').addEventListener('click', async () => {
   btn.classList.add('spinning');
   btn.disabled = true;
   try {
-    await fetch('/api/sync');
+    await fetch('/api/sync', { method: 'POST' });
     allSkills = await fetchSkills();
-    filtered  = allSkills;
-    renderProjects(allSkills);
-    const q = document.getElementById('search').value.trim();
-    if (q) {
-      filtered = allSkills.filter(s =>
-        [s.title, s.problem, s.solution, s.takeaway, s.projects.join(', ')]
-          .some(f => f && f.toLowerCase().includes(q.toLowerCase()))
-      );
-    }
-    renderEntries(filtered);
+    await applyView();
   } catch {}
   btn.classList.remove('spinning');
   btn.disabled = false;
