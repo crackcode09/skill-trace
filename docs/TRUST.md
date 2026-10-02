@@ -12,9 +12,10 @@ inert text.
 
 | Stage | Gated? | Why |
 | --- | --- | --- |
-| **Capture** (sync → global log) | No | Zero-friction first lesson. Inert text can't act. |
+| **Capture** (lesson → the project's own store) | No | Zero-friction first lesson. A project's lessons live with that project. |
 | **Record source** | Auto, as `no` | Every source becomes visible + revocable. Never auto-`yes`. |
-| **Inject** (Phase 2, PreToolUse) | **Default-deny per source** | Only `yes` sources inject. This is where the threat lives. |
+| **Sync** (project store → global store) | **Default-deny per source** | Only `yes` sources reach the global store. The user opts a project in. |
+| **Inject** (future, PreToolUse) | **Default-deny per source** | Only `yes` sources inject. This is where the threat lives. |
 
 The first sync from a new project is the likely attack, so trust-on-first-use
 (auto-`yes`) is wrong here — it would let a hostile repo trust itself. Instead the
@@ -47,8 +48,15 @@ skill-trace      | yes | 2026-06-11 | 2026-06-11 | command
    the file by hand. Never by the hook.
 3. **Trust is never decided from anything inside a synced file.** Otherwise the
    malicious content could promote its own source (circular trust).
-4. **Capture never reads the trust flag.** Logging is unconditional; only injection
-   reads it.
+4. **Capture never reads the trust flag.** Logging into a project's own store is
+   unconditional; only the sync into the global store (and injection) reads it.
+5. **Granting syncs; revoking does not delete.** `grant` pulls the project's
+   existing lessons in immediately. `revoke` stops future syncs but keeps lessons
+   that were accepted while trusted — delete them explicitly if you want them gone.
+
+Beside the registry, `skill-trace-sources.txt` records where each source was last
+seen on disk (`slug | path`). It is a locator so `grant` can sync at once; it is
+never a trust input.
 
 ## How a user grants trust
 

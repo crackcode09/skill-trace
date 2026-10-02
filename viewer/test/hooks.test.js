@@ -1,21 +1,18 @@
 'use strict';
 
-// RUNTIME test of the sync hook — spawns the real per-OS script with a temp
-// home dir and asserts the full chain: payload -> source recorded (trusted=no) ->
-// entry parsed -> appended to global log with provenance + schema marker.
-//
-// This is the coverage that parse-only checks miss. The PS 5.1 dead-code bug and
-// the missing-mkdir parity gap both passed a parser but failed at runtime; only
-// executing the script catches that class.
-//
-// NOTE: single-fire only. The global-log append path is not yet lock-guarded, so a
-// concurrent double-fire can still duplicate the entry (the registry IS guarded).
-// Locking the log path + a concurrent-dup assertion is the next hardening step.
+// RUNTIME tests of the sync hook — spawn the real per-OS script with a temp home
+// and assert the whole chain through the lesson store:
+//   save docs/skills.md → project store gets the lesson, rollup regenerated,
+//   source recorded trusted=no, NOTHING reaches the global store;
+//   grant → the project's lessons appear globally;
+//   edit a lesson file in a trusted project → the global mirror follows;
+//   concurrent fires → exactly one lesson.
+// Executing the script is the coverage parse-only checks miss.
 
 const { test } = require('node:test');
 const assert = require('node:assert');
 const { execFileSync, spawn } = require('node:child_process');
-const { mkdtempSync, existsSync, readFileSync } = require('node:fs');
+const { mkdtempSync, mkdirSync, existsSync, readFileSync, readdirSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
 const { tmpdir } = require('node:os');
 
@@ -28,64 +25,132 @@ function hookCmd() {
     : ['bash', [join(ROOT, 'hooks', 'scripts', 'sync-skills.sh')], 'HOME'];
 }
 
+function envFor(home) {
+  const [, , homeVar] = hookCmd();
+  const env = { ...process.env, [homeVar]: home, HOME: home, USERPROFILE: home };
+  for (const k of Object.keys(env)) if (/^(SKILL_TRACE_|GLOBAL_SKILLS_)/.test(k)) delete env[k];
+  env.SKILL_TRACE_NODE = process.execPath; // the wrapper runs the same node that runs this test
+  env.SKILL_TRACE_DEBUG = '1';             // hook explains on stderr why it ignored an event
+  return env;
+}
+
+// Returns the hook's combined output so a failing assertion can show what the
+// wrapper and node actually said (CI runners differ from dev machines).
 function runHook(home, payload) {
-  const [cmd, args, homeVar] = hookCmd();
-  execFileSync(cmd, args, { input: JSON.stringify(payload), env: { ...process.env, [homeVar]: home }, stdio: ['pipe', 'pipe', 'pipe'] });
+  const [cmd, args] = hookCmd();
+  const r = require('node:child_process').spawnSync(cmd, args, { input: JSON.stringify(payload), env: envFor(home), encoding: 'utf8' });
+  const out = `exit=${r.status}\nSTDOUT:\n${r.stdout}\nSTDERR:\n${r.stderr}`;
+  runHook.last = out;
+  return out;
 }
 
 function runHookAsync(home, payload) {
-  const [cmd, args, homeVar] = hookCmd();
+  const [cmd, args] = hookCmd();
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { env: { ...process.env, [homeVar]: home } });
+    const child = spawn(cmd, args, { env: envFor(home) });
     child.on('error', reject);
     child.on('close', () => resolve());
     child.stdin.end(JSON.stringify(payload));
   });
 }
 
-test('hook records source trusted=no and appends entry with provenance + marker', () => {
+function trustCli(home, ...args) {
+  return execFileSync(process.execPath, [join(ROOT, 'viewer', 'trust.js'), ...args], { env: envFor(home), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+}
+
+const ENTRY = '## [2026-06-11] — Runtime chain test\n\n**Stack:** node\n\n**Problem:** p\n\n**Solution:** s\n\n**Takeaway:** t\n';
+
+function seedProject(home, name = 'myproj') {
+  const proj = join(home, name);
+  mkdirSync(join(proj, 'docs'), { recursive: true });
+  const skills = join(proj, 'docs', 'skills.md');
+  writeFileSync(skills, ENTRY, 'utf8'); // Claude's Write has happened before PostToolUse fires
+  return { proj, skills };
+}
+
+const lessonFiles = dir => existsSync(join(dir, 'lessons')) ? readdirSync(join(dir, 'lessons')).filter(f => f.endsWith('.md')) : [];
+
+test('untrusted project: lesson lands in the project store, source recorded as no, nothing global', () => {
   const home = mkdtempSync(join(tmpdir(), 'st-hook-'));
-  const skills = join(home, 'myproj', 'docs', 'skills.md');
-  runHook(home, {
-    tool_name: 'Write',
-    tool_input: {
-      file_path: skills,
-      content: '## [2026-06-11] — Runtime chain test\n\n**Problem:** p\n\n**Solution:** s\n\n**Takeaway:** t\n',
-    },
-  });
+  const { proj, skills } = seedProject(home);
+  runHook(home, { tool_name: 'Write', tool_input: { file_path: skills, content: ENTRY } });
 
-  const reg = join(home, '.claude', 'skill-trace-trust.txt');
-  const log = join(home, '.claude', 'global-skills.md');
-  assert.ok(existsSync(reg), 'trust registry created');
-  assert.ok(existsSync(log), 'global log created');
+  const pstore = join(proj, '.claude', 'skill-trace');
+  assert.equal(lessonFiles(pstore).length, 1, 'one lesson file in the project store\n' + runHook.last);
+  const lesson = readFileSync(join(pstore, 'lessons', lessonFiles(pstore)[0]), 'utf8');
+  assert.match(lesson, /^---\nid: [0-9A-Z]{26}\n/, 'schema-2 frontmatter');
+  assert.match(lesson, /\nprojects: \[myproj\]\n/, 'slug derived from the folder (no git remote)');
+  assert.match(lesson, /\ngenerated_by: migration\n/, 'a hand-written docs/skills.md migrates in');
+  assert.ok(existsSync(join(pstore, 'index.md')), 'OKF index generated');
+  assert.ok(readFileSync(skills, 'utf8').startsWith('<!-- generated by skill-trace'), 'docs/skills.md is now a generated rollup');
+  assert.ok(readdirSync(join(proj, 'docs')).some(f => /^skills\.legacy-\d{8}\.md$/.test(f)), 'original kept under a legacy name');
 
-  const regRows = readFileSync(reg, 'utf8').split('\n')
-    .filter(l => l.trim() && !l.trim().startsWith('#'));
-  assert.equal(regRows.length, 1, 'exactly one source row');
-  assert.match(regRows[0], /^myproj \| no \| \d{4}-\d{2}-\d{2} \|\s*\|\s*$/, 'spec-exact row, trusted=no, grant fields empty');
+  const reg = readFileSync(join(home, '.claude', 'skill-trace-trust.txt'), 'utf8').split('\n').filter(l => l.trim() && !l.startsWith('#'));
+  assert.equal(reg.length, 1);
+  assert.match(reg[0], /^myproj \| no \| \d{4}-\d{2}-\d{2} \|\s*\|\s*$/, 'recorded as untrusted, grant fields empty');
+  assert.match(readFileSync(join(home, '.claude', 'skill-trace-sources.txt'), 'utf8'), /^myproj \| .*myproj$/m, 'locator records where the project lives');
 
-  const logText = readFileSync(log, 'utf8');
-  assert.match(logText, /skill-trace-schema: 1/, 'schema marker written on bootstrap');
-  assert.match(logText, /Runtime chain test <!-- myproj -->/, 'entry tagged with the derived slug');
-  const entryCount = (logText.match(/^## \[2026/gm) || []).length;
-  assert.equal(entryCount, 1, 'single fire => single entry');
+  assert.equal(lessonFiles(join(home, '.claude', 'skill-trace')).length, 0, 'untrusted → not synced globally');
+  assert.ok(!existsSync(join(home, '.claude', 'global-skills.md')), 'no global rollup written for an untrusted source');
 });
 
-test('concurrent fires of the same entry append it exactly once', async () => {
+test('grant pulls the project in immediately; a later edit to a lesson file follows into the global mirror', () => {
+  const home = mkdtempSync(join(tmpdir(), 'st-hook-'));
+  const { proj, skills } = seedProject(home);
+  runHook(home, { tool_name: 'Write', tool_input: { file_path: skills, content: ENTRY } });
+  const gstore = join(home, '.claude', 'skill-trace');
+  assert.equal(lessonFiles(gstore).length, 0);
+
+  const out = trustCli(home, 'grant', 'myproj');
+  assert.match(out, /trusted=yes/);
+  assert.match(out, /Synced 1 lesson/);
+  assert.equal(lessonFiles(gstore).length, 1, 'grant synced the existing lesson');
+  const rollup = readFileSync(join(home, '.claude', 'global-skills.md'), 'utf8');
+  assert.ok(rollup.startsWith('<!-- generated by skill-trace'));
+  assert.match(rollup, /Runtime chain test <!-- myproj -->/);
+
+  // user rewrites the lesson in the project (edits the file by hand)
+  const pstore = join(proj, '.claude', 'skill-trace');
+  const file = join(pstore, 'lessons', lessonFiles(pstore)[0]);
+  writeFileSync(file, readFileSync(file, 'utf8').replace('title: Runtime chain test', 'title: Runtime chain test, revised').replace('**Takeaway:** t', '**Takeaway:** t, now sharper'), 'utf8');
+  runHook(home, { tool_name: 'Edit', tool_input: { file_path: file, old_string: 't', new_string: 't, now sharper' } });
+
+  const g = readFileSync(join(gstore, 'lessons', lessonFiles(gstore)[0]), 'utf8');
+  assert.match(g, /\ntitle: "Runtime chain test, revised"\n|\ntitle: Runtime chain test, revised\n/, 'global title follows the project');
+  assert.match(g, /now sharper/, 'global body follows the project');
+  assert.equal(lessonFiles(gstore).length, 1, 'still one lesson (same id)');
+  // retitling renames the lesson file (slug changes, id suffix stays) — look it up again
+  assert.equal(lessonFiles(pstore).length, 1);
+  assert.match(lessonFiles(pstore)[0], /^2026-06-11-runtime-chain-test-revised--[0-9A-Z]{8}\.md$/, 'file renamed to the new slug');
+  assert.ok(!existsSync(file), 'old filename gone');
+  const p = readFileSync(join(pstore, 'lessons', lessonFiles(pstore)[0]), 'utf8');
+  assert.match(p, /\nhash: [0-9a-f]{12}\n/);
+  const stored = p.match(/\nhash: ([0-9a-f]{12})\n/)[1];
+  assert.equal(stored, require('../store.js').bodyHash(p.split('\n---\n')[1]), 'project file re-blessed: hash matches the edited body');
+
+  // revoke keeps what was already synced
+  assert.match(trustCli(home, 'revoke', 'myproj'), /trusted=no/);
+  assert.equal(lessonFiles(gstore).length, 1);
+});
+
+test('concurrent fires of the same save produce exactly one lesson', async () => {
   const home = mkdtempSync(join(tmpdir(), 'st-conc-'));
-  const payload = {
-    tool_name: 'Write',
-    tool_input: {
-      file_path: join(home, 'myproj', 'docs', 'skills.md'),
-      content: '## [2026-06-11] — Concurrent test\n\n**Problem:** p\n\n**Solution:** s\n',
-    },
-  };
-  // Fire several at once to reliably hit the read-before-append window. Without a
-  // lock on the global-log append, multiple writers see an empty/short file and
-  // each append → duplicates. With the lock, exactly one entry survives.
+  const { proj, skills } = seedProject(home);
+  const payload = { tool_name: 'Write', tool_input: { file_path: skills, content: ENTRY } };
   const N = 8;
   await Promise.all(Array.from({ length: N }, () => runHookAsync(home, payload)));
-  const logText = readFileSync(join(home, '.claude', 'global-skills.md'), 'utf8');
-  const entryCount = (logText.match(/^## \[2026/gm) || []).length;
-  assert.equal(entryCount, 1, `${N} concurrent fires of the same entry must append it once, got ${entryCount}`);
+  const pstore = join(proj, '.claude', 'skill-trace');
+  assert.equal(lessonFiles(pstore).length, 1, `${N} concurrent fires must yield one lesson`);
+  const legacy = readdirSync(join(proj, 'docs')).filter(f => f.startsWith('skills.legacy-'));
+  assert.equal(legacy.length, 1, 'migrated exactly once');
+  const reg = readFileSync(join(home, '.claude', 'skill-trace-trust.txt'), 'utf8').split('\n').filter(l => l.trim() && !l.startsWith('#'));
+  assert.equal(reg.length, 1, 'one registry row');
+});
+
+test('events for unrelated files are ignored', () => {
+  const home = mkdtempSync(join(tmpdir(), 'st-hook-'));
+  mkdirSync(join(home, 'proj', 'src'), { recursive: true });
+  writeFileSync(join(home, 'proj', 'src', 'index.js'), '// nothing', 'utf8');
+  runHook(home, { tool_name: 'Write', tool_input: { file_path: join(home, 'proj', 'src', 'index.js'), content: '// nothing' } });
+  assert.ok(!existsSync(join(home, '.claude')), 'no registry, no store, nothing');
 });

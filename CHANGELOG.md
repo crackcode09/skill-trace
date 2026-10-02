@@ -1,5 +1,70 @@
 # Changelog
 
+## [1.4.0] — 2026-10-02
+
+The store release: one OKF-style file per lesson with a typed header, a project
+store that travels with the repo and a trust-gated global store, a single write
+path, delete with tombstones, and automatic migration from the single-file log.
+
+**Upgrading from 1.3.0:** nothing to do. On first start the viewer migrates
+`~/.claude/global-skills.md` into `~/.claude/skill-trace/lessons/`, keeps the
+original as `global-skills.legacy-<date>.md`, and regenerates `global-skills.md`
+as a read-only rollup. Each project migrates the same way the first time a lesson
+is saved there. The hooks now call `node`, which the viewer already required.
+
+### Added
+- **`viewer/store.js`** — zero-dependency lesson store module (schema 2): ULID ids,
+  body hash (hand-edit detection), frontmatter parse/serialize, `createLesson`,
+  `upsertGlobal` (dedup by id → hash → same title within 7 days; merges
+  provenance; bumps `seen` on recurrence; honours tombstones), `deleteLesson`,
+  rollup regeneration (schema-1 `skills.md` / `global-skills.md` for grep
+  compatibility + OKF `index.md`), and idempotent `migrateLegacy` that renames —
+  never deletes — the old file. CLI: `node viewer/store.js status|create|delete|regen|migrate`.
+  **Not yet wired** into the server, hooks or skills; that follows in the next PRs.
+- **Viewer reads the lesson store.** `server.js` now loads `~/.claude/skill-trace/lessons`
+  instead of parsing `global-skills.md`. On first start a legacy single file is
+  migrated automatically (split into lesson files, renamed to `*.legacy-<date>.md`,
+  rollup regenerated in place). Until the hooks write to the store directly, entries
+  they append to the rollup are absorbed on the next sync. API entries carry `id`
+  (ULID), `seen`, `edited` and `meta`. The demo launcher copies the fixture to a temp
+  store so `demo/skills-demo.md` stays pristine.
+- **Metadata panel** in the entry detail — a collapsible block showing the lesson's
+  frontmatter exactly as on disk, with `seen ×N` and an `edited outside the tool`
+  flag when the body hash no longer matches.
+- **Single write path.** Saving a lesson lands it in the project's own store
+  (`.claude/skill-trace/lessons/`, committed with the repo); `docs/skills.md` is
+  regenerated as a rollup. It reaches the global store **only if the project is
+  trusted** — the registry is now the opt-in gate for sync, not only for future
+  injection. `/skill-trust grant` syncs that project's existing lessons at once;
+  `revoke` stops future syncs and keeps what was accepted. A locator file
+  (`skill-trace-sources.txt`) remembers where each source lives.
+- **Hooks shrink to one line.** `sync-skills.ps1` / `.sh` now just pipe the
+  Claude Code event to `node store.js hook`; the ~200 lines of duplicated
+  PowerShell/Python parsing, locking, registry and dedup logic are gone. One
+  implementation, tested once, same behaviour on every platform.
+- **`log-lesson` writes via `node store.js create`** (JSON on stdin) and no longer
+  refuses to capture in an untrusted project: the lesson stays local and the user
+  is told how to grant trust. Lessons carry `generated_by` (`claude-code`,
+  `migration`, or `hook` for hand-written entries absorbed from a rollup).
+- **Hand edits stay safe.** Entries typed into either rollup are absorbed into the
+  store on the next save; a hand-edited lesson file is re-blessed (hash refreshed)
+  and, for a trusted project, mirrored globally — the project copy is the author.
+- **`/api/dedupe` removed** — the store dedups on write; nothing calls it.
+- **Delete from the viewer.** A Delete action on the entry detail with an inline
+  two-step confirm. `DELETE /api/lessons/:id` removes the file from the global
+  store, records a tombstone so a re-sync cannot bring it back, regenerates the
+  rollup and resyncs. `GET /api/lessons/:id` returns one lesson.
+- **`/skill-trace` command** — `forget <id|title text>` (unique title fragment or
+  id; ambiguous fragments are refused with the candidates listed), `sync`, and
+  `status` (counts, slug, trusted, hand-edited and recurring lessons).
+- **Dashboard cards flag recurrence** — `N recurring` in the card meta when a tag
+  has lessons seen more than once.
+- **No more `docs/` side effect.** `docs/skills.md` is regenerated only in projects
+  that already had one; a new project gets no `docs/` folder. Each project store
+  carries a generated `index.md` as its readable summary.
+- `viewer/test/store.test.js` — 9 behaviour tests (round-trip, ulid, edited flag,
+  upsert semantics, tombstones, migration, rollup parse-back, bad-file skip, paths).
+
 ## [1.3.0] — 2026-10-02
 
 The adoption release: capture (`log-lesson`) and the viewer that makes the log worth browsing. In-session context injection is next (v1.4.0). This section also absorbs the unreleased `1.2.1-dev` plumbing (schema marker, trust registry, tests, CI), which never shipped on its own.
