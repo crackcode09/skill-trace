@@ -508,6 +508,17 @@ body {
   color: var(--text-muted);
   font-weight: 500;
 }
+.badge.stack {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-body);
+  cursor: pointer;
+  font: inherit; font-size: 11px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  transition: color var(--trans), border-color var(--trans), background var(--trans);
+}
+.badge.stack::before { content: '#'; color: var(--text-muted); margin-right: 1px; }
+.badge.stack:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+.badge.stack:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .badge.date {
   color: var(--accent);
   border-color: rgba(88,166,255,.25);
@@ -881,6 +892,9 @@ function renderEntries(skills) {
   document.getElementById('topbarStatus').textContent =
     allSkills.length ? `${count} of ${allSkills.length}` : '';
   renderFilterStrip();
+  // The dashboard groups whatever is in view; if it is showing, redraw it so a
+  // search or filter change is visible there too, not only in the hidden list.
+  if (dashboardMode) renderDashboard();
 
   if (!count) {
     const q = document.getElementById('search').value;
@@ -952,6 +966,11 @@ function makeSection(type, text) {
   `;
 }
 
+document.getElementById('detailPanel').addEventListener('click', e => {
+  const b = e.target.closest('.badge.stack');
+  if (b) drillStack(b.dataset.tag);
+});
+
 function renderDetail(s) {
   const sections = [
     ['Problem',  s.problem],
@@ -965,6 +984,7 @@ function renderDetail(s) {
       <div class="detail-badges">
         <span class="badge">${esc(s.projects.join(', '))}</span>
         <span class="badge date">${fmtDate(s.date)}</span>
+        ${(s.stack || []).map(t => `<button type="button" class="badge stack" data-tag="${esc(t)}" title="Show all ${esc(t)} lessons">${esc(t)}</button>`).join('')}
       </div>
       ${sections.map(([type, text]) => makeSection(type, text)).join('')}
     </div>
@@ -972,6 +992,22 @@ function renderDetail(s) {
 }
 
 // ── Interactions ──────────────────────────────────────────────────────────────
+
+// Single source of truth for "what is in view": the server applies search +
+// project, the Stack drill-down (client-side) narrows on top. Every path that
+// changes search text or re-syncs goes through here, so the Sync button, the
+// search box and the Stack filter can never disagree about the rules.
+async function applyView() {
+  const q    = document.getElementById('search').value.trim();
+  const proj = activeProject === 'All' ? '' : activeProject;
+  let rows = await fetchSkills(q, proj);
+  if (activeStack) rows = rows.filter(s => (s.stack || []).includes(activeStack));
+  filtered = rows;
+  renderProjects(filtered);
+  renderEntries(filtered);
+  // Keep the detail pane honest: never show an entry that is no longer in view.
+  if (filtered.length && !filtered.some(s => s.id === activeId)) selectEntry(filtered[0]);
+}
 
 async function selectProject(name) {
   activeProject = name;
@@ -1001,14 +1037,7 @@ function selectEntry(s) {
 
 document.getElementById('search').addEventListener('input', e => {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(async () => {
-    const q    = e.target.value.trim();
-    activeStack = null;
-    const proj = activeProject === 'All' ? '' : activeProject;
-    filtered   = await fetchSkills(q, proj);
-    renderEntries(filtered);
-    renderProjects(filtered);
-  }, 250);
+  searchTimer = setTimeout(applyView, 250);
 });
 
 document.addEventListener('keydown', e => {
@@ -1049,7 +1078,9 @@ function renderDashboard() {
     dash.innerHTML =
       '<div class="dash-head"><span class="dash-title">Lessons by Stack tag</span></div>' +
       (source.length !== allSkills.length
-        ? '<p class="empty-state">No <code>**Stack:**</code> tags among the lessons in view. Clear the filter above to see every tag.</p>'
+        ? `<p class="empty-state">${document.getElementById('search').value.trim()
+            ? `No lessons match "${esc(document.getElementById('search').value.trim())}".`
+            : 'No <code>**Stack:**</code> tags among the lessons in view. Clear the filter above to see every tag.'}</p>`
         : '<p class="empty-state">No <code>**Stack:**</code> tags yet. Entries written by the ' +
       '<code>log-lesson</code> skill carry a Stack line; once you have a few, they group here.</p>');
     return;
@@ -1132,10 +1163,7 @@ function drillStack(tag) {
   activeStack = tag;
   activeId    = null;
   toggleDashboard(false);
-  const scope = activeProject === 'All' ? allSkills : allSkills.filter(s => s.projects.includes(activeProject));
-  filtered = scope.filter(s => (s.stack || []).includes(tag));
-  renderProjects(filtered);
-  renderEntries(filtered);
+  applyView();
 }
 
 document.getElementById('dashToggle').addEventListener('click', () => { if (!dashboardMode) toggleDashboard(true); });
@@ -1183,18 +1211,9 @@ document.getElementById('refreshBtn').addEventListener('click', async () => {
   btn.classList.add('spinning');
   btn.disabled = true;
   try {
-    await fetch('/api/sync');
+    await fetch('/api/sync', { method: 'POST' });
     allSkills = await fetchSkills();
-    filtered  = allSkills;
-    renderProjects(allSkills);
-    const q = document.getElementById('search').value.trim();
-    if (q) {
-      filtered = allSkills.filter(s =>
-        [s.title, s.problem, s.solution, s.takeaway, s.projects.join(', ')]
-          .some(f => f && f.toLowerCase().includes(q.toLowerCase()))
-      );
-    }
-    renderEntries(filtered);
+    await applyView();
   } catch {}
   btn.classList.remove('spinning');
   btn.disabled = false;
