@@ -329,11 +329,12 @@ function deleteLesson(dir, id) {
 // ── Rollups: schema-1 markdown (grep compatibility) + OKF index ───────────────
 
 function rollupMarkdown(dir, lessons) {
-  const rel = path.relative(path.dirname(dir), dir).replace(/\\/g, '/') || dir;
+  // e.g. ".claude/skill-trace" — relative to the project root (or home)
+  const rel = path.relative(path.dirname(path.dirname(dir)), dir).replace(/\\/g, '/') || dir;
   const head = [
     `${GENERATED_MARK} from ${rel}/${LESSONS_DIR} — edit the lesson files, not this -->`,
     '<!-- skill-trace-schema: 1 -->',
-    '',
+    '', '',
   ];
   const blocks = lessons.map(l => {
     const prov = l.projects.length ? ` <!-- ${l.projects.join(', ')} -->` : '';
