@@ -103,6 +103,33 @@ test('compat: an entry appended to the rollup by the old hook is absorbed into t
   } finally { srv.stop(); }
 });
 
+test('GET /api/lessons/:id returns one; DELETE removes it, tombstones it, regenerates the rollup, 404s afterwards', async () => {
+  const home = fs.mkdtempSync(join(tmpdir(), 'st-srv-'));
+  fs.writeFileSync(join(home, 'global-skills.md'), LEGACY, 'utf8');
+  const srv = await boot(home);
+  try {
+    const rows = await srv.api('/api/skills');
+    const victim = rows.find(r => r.title === 'Second lesson');
+    const one = await srv.api(`/api/lessons/${victim.id}`);
+    assert.equal(one.title, 'Second lesson');
+    assert.ok(one.meta.includes(`id: ${victim.id}`));
+
+    const del = await srv.api(`/api/lessons/${victim.id}`, { method: 'DELETE' });
+    assert.deepEqual(del, { ok: true, id: victim.id, count: 1 });
+    assert.deepEqual((await srv.api('/api/skills')).map(r => r.title), ['HTMX partial detection']);
+    assert.equal(fs.readdirSync(join(home, 'skill-trace', 'lessons')).length, 1, 'file removed');
+    assert.equal(fs.readFileSync(join(home, 'skill-trace', 'tombstones.txt'), 'utf8').trim(), victim.id);
+    assert.ok(!fs.readFileSync(join(home, 'global-skills.md'), 'utf8').includes('Second lesson'), 'rollup regenerated without it');
+
+    const miss = await fetch(`http://127.0.0.1:${srv.port}/api/lessons/${victim.id}`);
+    assert.equal(miss.status, 404);
+    const again = await fetch(`http://127.0.0.1:${srv.port}/api/lessons/${victim.id}`, { method: 'DELETE' });
+    assert.equal(again.status, 404, 'deleting twice is a 404, not a crash');
+    const bad = await fetch(`http://127.0.0.1:${srv.port}/api/lessons/${victim.id}`, { method: 'POST' });
+    assert.equal(bad.status, 405);
+  } finally { srv.stop(); }
+});
+
 test('no legacy file and no store → empty, no crash; dedupe route reports store semantics once a store exists', async () => {
   const home = fs.mkdtempSync(join(tmpdir(), 'st-srv-'));
   const srv = await boot(home);

@@ -43,6 +43,18 @@ Spec: `docs/superpowers/specs/2026-10-02-okf-lesson-store-design.md`.
 - **Hand edits stay safe.** Entries typed into either rollup are absorbed into the
   store on the next save; a hand-edited lesson file is re-blessed (hash refreshed)
   and, for a trusted project, mirrored globally — the project copy is the author.
+- **Delete from the viewer.** A Delete action on the entry detail with an inline
+  two-step confirm. `DELETE /api/lessons/:id` removes the file from the global
+  store, records a tombstone so a re-sync cannot bring it back, regenerates the
+  rollup and resyncs. `GET /api/lessons/:id` returns one lesson.
+- **`/skill-trace` command** — `forget <id|title text>` (unique title fragment or
+  id; ambiguous fragments are refused with the candidates listed), `sync`, and
+  `status` (counts, slug, trusted, hand-edited and recurring lessons).
+- **Dashboard cards flag recurrence** — `N recurring` in the card meta when a tag
+  has lessons seen more than once.
+- **No more `docs/` side effect.** `docs/skills.md` is regenerated only in projects
+  that already had one; a new project gets no `docs/` folder. Each project store
+  carries a generated `index.md` as its readable summary.
 - `viewer/test/store.test.js` — 9 behaviour tests (round-trip, ulid, edited flag,
   upsert semantics, tombstones, migration, rollup parse-back, bad-file skip, paths).
 
