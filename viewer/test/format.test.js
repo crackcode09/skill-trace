@@ -11,6 +11,7 @@ const { tmpdir } = require('node:os');
 
 const MD = join(mkdtempSync(join(tmpdir(), 'st-fmt-')), 'global-skills.md');
 process.env.GLOBAL_SKILLS_MD_PATH = MD;
+process.env.SKILL_TRACE_GLOBAL_STORE = join(mkdtempSync(join(tmpdir(), 'st-fmt-store-')), 'skill-trace');
 
 const { parseMd, readSchemaVersion, entryKey, dedupeGlobal, sync, searchSkills } = require('../server.js');
 

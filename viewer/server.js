@@ -1,13 +1,22 @@
 'use strict';
 
 const { createServer } = require('http');
-const { readFileSync, existsSync, watch, writeFileSync, unlinkSync } = require('fs');
-const { join } = require('path');
+const { readFileSync, existsSync, watch, writeFileSync, unlinkSync, realpathSync } = require('fs');
+const { join, dirname, basename, resolve } = require('path');
 const { homedir } = require('os');
 const { createHash } = require('crypto');
+const store = require('./store.js');
 
 const HOME      = homedir();
-const MD_PATH   = process.env.GLOBAL_SKILLS_MD_PATH || join(HOME, '.claude', 'global-skills.md');
+function realPath(p) {
+  p = resolve(p);
+  // realpath the deepest existing ancestor so not-yet-created files/dirs normalize too
+  let probe = p; const tail = [];
+  while (!existsSync(probe)) { tail.unshift(basename(probe)); const up = dirname(probe); if (up === probe) return p; probe = up; }
+  try { return join(realpathSync.native(probe), ...tail); } catch { return p; }
+}
+const MD_PATH   = realPath(process.env.GLOBAL_SKILLS_MD_PATH || join(HOME, '.claude', 'global-skills.md')); // legacy input / generated rollup
+const STORE_DIR = realPath(store.storePaths({ home: HOME }).global);                                           // ~/.claude/skill-trace
 const PID_PATH  = join(HOME, '.claude', 'global-skills.pid');
 const PORT      = parseInt(process.env.GLOBAL_SKILLS_PORT || '38888', 10);
 const HTML_PATH = join(__dirname, 'public', 'index.html');
@@ -118,58 +127,103 @@ function dedupeGlobal() {
   return { removed, merged };
 }
 
-// ── Sync: rebuild in-memory store from MD ────────────────────────────────────
+// ── Sync: rebuild the in-memory list from the lesson store ───────────────────
+//
+// Source of truth is the store (one file per lesson, schema 2). The legacy single
+// file at MD_PATH is handled two ways:
+//   1. First run: a hand-written legacy file with no store yet is MIGRATED
+//      (split into lesson files, renamed to *.legacy-<date>.md, rollup regenerated).
+//   2. Compatibility: until the hooks write to the store directly, they still
+//      append schema-1 entries to the rollup. Any entry whose body hash is not in
+//      the store is upserted, then the rollup is regenerated. Removed in PR C.
 
-function sync() {
-  if (!existsSync(MD_PATH)) {
-    skills = [];
-    console.log('[global-skills] global-skills.md not found — empty store');
+function metaText(l) {
+  const fm = store.serializeLesson(l).split('\n---\n')[0].replace(/^---\n/, '');
+  return l.edited ? fm + '\nedited: outside the tool (body hash mismatch)' : fm;
+}
+
+function toEntry(l) {
+  const sec = store.sections(l);
+  return {
+    id: l.id, title: l.title, date: l.date, projects: l.projects, stack: l.stack,
+    seen: l.seen, edited: l.edited, meta: metaText(l),
+    problem: sec.problem, solution: sec.solution, takeaway: sec.takeaway,
+  };
+}
+
+function absorbLegacy() {
+  if (!existsSync(MD_PATH)) return;
+  const content = readFileSync(MD_PATH, 'utf8');
+  const hasStore = existsSync(join(STORE_DIR, 'lessons'));
+  if (!store.isGenerated(MD_PATH) && !hasStore) {
+    const fileVersion = readSchemaVersion(content);
+    if (fileVersion > SCHEMA_VERSION) console.log(`[global-skills] legacy file schema v${fileVersion} newer than v${SCHEMA_VERSION} — migrating best-effort`);
+    const r = store.migrateLegacy(MD_PATH, STORE_DIR);
+    console.log(`[global-skills] migrated legacy log — ${r.migrated} lessons (${r.merged} merged), legacy kept as ${r.legacyRenamedTo}`);
     return;
   }
-  const content = readFileSync(MD_PATH, 'utf8');
-  const fileVersion = readSchemaVersion(content);
-  if (fileVersion > SCHEMA_VERSION) {
-    console.log(`[global-skills] file schema v${fileVersion} is newer than parser v${SCHEMA_VERSION} — parsing best-effort as v1`);
+  // compat: pick up entries the hooks appended to the rollup / legacy file
+  const known = new Set(store.loadStore(STORE_DIR).lessons.map(l => l.hash));
+  let added = 0;
+  for (const e of store.parseLegacyMd(content)) {
+    if (known.has(store.bodyHash(e.body))) continue;
+    const r = store.upsertGlobal(STORE_DIR, {
+      id: store.ulid(), type: 'Lesson', schema: store.SCHEMA, title: e.title, date: e.date, stack: e.stack,
+      projects: e.projects, seen: 1, created: `${e.date}T00:00:00Z`,
+      updated: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+      body: e.body, hash: store.bodyHash(e.body),
+    });
+    if (r.action !== 'tombstoned') added++;
   }
-  const entries = parseMd(content);
-  entries.sort((a, b) => b.date.localeCompare(a.date));
-  skills = entries.map((e, i) => ({ id: i + 1, ...e }));
+  if (added || !store.isGenerated(MD_PATH)) {
+    store.regenRollup(STORE_DIR, MD_PATH);
+    if (added) console.log(`[global-skills] absorbed ${added} legacy-appended entr${added === 1 ? 'y' : 'ies'} into the store`);
+  }
+}
+
+function sync() {
+  try { absorbLegacy(); } catch (err) { console.log(`[global-skills] legacy absorb failed: ${err.message}`); }
+  const { lessons, warnings } = store.loadStore(STORE_DIR);
+  for (const w of warnings) console.log(`[global-skills] skipped ${w}`);
+  skills = lessons.map(toEntry);
   console.log(`[global-skills] synced — ${skills.length} entries`);
 }
 
-// ── Live watch: re-sync when MD changes ──────────────────────────────────────
-// Two-layer strategy: file watcher for fast change detection; directory watcher
-// to arm the file watcher the first time global-skills.md is created.
+// ── Live watch: re-sync when the store or the legacy/rollup file changes ──────
+// Watchers are armed lazily: the lessons dir and the rollup may not exist yet on
+// a fresh install, so a watcher on ~/.claude re-arms them when they appear.
 
 let debounce = null;
-let fileWatcher = null;
+const watchers = new Map(); // path → FSWatcher
 
-function armFileWatch() {
-  if (fileWatcher || !existsSync(MD_PATH)) return;
-  try {
-    fileWatcher = watch(MD_PATH, () => {
-      clearTimeout(debounce);
-      debounce = setTimeout(() => {
-        console.log('[global-skills] MD changed — resyncing');
-        sync();
-      }, 500);
-    });
-  } catch (err) {
-    console.log(`[global-skills] file watch failed: ${err.message}`);
-  }
+function scheduleSync(why) {
+  clearTimeout(debounce);
+  debounce = setTimeout(() => { console.log(`[global-skills] ${why} — resyncing`); sync(); }, 500);
 }
 
-// Start file + directory watchers. Invoked only when run as the server process.
-function startWatchers() {
-  armFileWatch(); // works immediately if the file already exists
-  // Directory watch detects first creation of global-skills.md
+// Always watch a DIRECTORY (file watches are fragile on Windows and macOS);
+// `onlyFile` narrows the events to one basename inside it.
+function armWatch(dir, why, onlyFile) {
+  const key = dir + (onlyFile ? '#' + onlyFile : '');
+  if (watchers.has(key) || !existsSync(dir)) return;
   try {
-    watch(join(HOME, '.claude'), (event, filename) => {
-      if (filename === 'global-skills.md') armFileWatch();
-    });
-  } catch {
-    // directory may not exist yet on a brand-new install — not fatal
-  }
+    watchers.set(key, watch(dir, (ev, fname) => {
+      if (onlyFile && fname && String(fname) !== onlyFile) return;
+      scheduleSync(why);
+    }));
+  } catch (err) { console.log(`[global-skills] watch failed for ${dir}: ${err.message}`); }
+}
+
+function armAll() {
+  armWatch(join(STORE_DIR, 'lessons'), 'store changed');
+  armWatch(dirname(MD_PATH), 'legacy/rollup file changed', basename(MD_PATH));
+}
+
+// Invoked only when run as the server process.
+function startWatchers() {
+  armAll();
+  try { watch(realPath(join(HOME, '.claude')), () => armAll()); } catch {}   // first creation of either
+  try { if (existsSync(STORE_DIR)) watch(STORE_DIR, () => armAll()); } catch {} // first creation of lessons/
 }
 
 // ── Search: case-insensitive substring across every field a user can see ──────
@@ -242,7 +296,7 @@ const server = createServer((req, res) => {
       res.writeHead(405, { Allow: 'POST' });
       return res.end('Method Not Allowed');
     }
-    const result = dedupeGlobal();
+    const result = existsSync(join(STORE_DIR, 'lessons')) ? { removed: 0, merged: 0, note: 'store dedups on write' } : dedupeGlobal();
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': `http://localhost:${PORT}` });
     return res.end(JSON.stringify({ ok: true, ...result }));
   }
@@ -281,4 +335,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { parseMd, readSchemaVersion, entryKey, dedupeGlobal, searchSkills, sync, MD_PATH };
+module.exports = { parseMd, readSchemaVersion, entryKey, dedupeGlobal, searchSkills, sync, toEntry, MD_PATH, STORE_DIR };
