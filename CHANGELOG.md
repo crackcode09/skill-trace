@@ -25,6 +25,24 @@ Spec: `docs/superpowers/specs/2026-10-02-okf-lesson-store-design.md`.
 - **Metadata panel** in the entry detail — a collapsible block showing the lesson's
   frontmatter exactly as on disk, with `seen ×N` and an `edited outside the tool`
   flag when the body hash no longer matches.
+- **Single write path.** Saving a lesson lands it in the project's own store
+  (`.claude/skill-trace/lessons/`, committed with the repo); `docs/skills.md` is
+  regenerated as a rollup. It reaches the global store **only if the project is
+  trusted** — the registry is now the opt-in gate for sync, not only for future
+  injection. `/skill-trust grant` syncs that project's existing lessons at once;
+  `revoke` stops future syncs and keeps what was accepted. A locator file
+  (`skill-trace-sources.txt`) remembers where each source lives.
+- **Hooks shrink to one line.** `sync-skills.ps1` / `.sh` now just pipe the
+  Claude Code event to `node store.js hook`; the ~200 lines of duplicated
+  PowerShell/Python parsing, locking, registry and dedup logic are gone. One
+  implementation, tested once, same behaviour on every platform.
+- **`log-lesson` writes via `node store.js create`** (JSON on stdin) and no longer
+  refuses to capture in an untrusted project: the lesson stays local and the user
+  is told how to grant trust. Lessons carry `generated_by` (`claude-code`,
+  `migration`, or `hook` for hand-written entries absorbed from a rollup).
+- **Hand edits stay safe.** Entries typed into either rollup are absorbed into the
+  store on the next save; a hand-edited lesson file is re-blessed (hash refreshed)
+  and, for a trusted project, mirrored globally — the project copy is the author.
 - `viewer/test/store.test.js` — 9 behaviour tests (round-trip, ulid, edited flag,
   upsert semantics, tombstones, migration, rollup parse-back, bad-file skip, paths).
 
