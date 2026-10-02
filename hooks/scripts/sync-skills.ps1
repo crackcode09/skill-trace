@@ -7,11 +7,14 @@
 # written to stderr, which Claude Code only surfaces on a non-zero exit, and
 # which the runtime tests capture.
 
+$dbg = -not [string]::IsNullOrEmpty($env:SKILL_TRACE_DEBUG)
+if ($dbg) { [Console]::Error.WriteLine("skill-trace hook (ps1): start OS=$($env:OS) PS=$($PSVersionTable.PSVersion)") }
+
 if ($env:OS -ne 'Windows_NT') { exit 0 }
 
 $stdin = ''
-try { $stdin = [Console]::In.ReadToEnd() } catch { exit 0 }
-if ([string]::IsNullOrWhiteSpace($stdin)) { exit 0 }
+try { $stdin = [Console]::In.ReadToEnd() } catch { if ($dbg) { [Console]::Error.WriteLine("skill-trace hook (ps1): stdin read failed: $($_.Exception.Message)") }; exit 0 }
+if ([string]::IsNullOrWhiteSpace($stdin)) { if ($dbg) { [Console]::Error.WriteLine("skill-trace hook (ps1): empty stdin") }; exit 0 }
 
 $root = $env:CLAUDE_PLUGIN_ROOT
 if ([string]::IsNullOrEmpty($root)) { $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot) }
@@ -28,6 +31,10 @@ if ([string]::IsNullOrEmpty($node)) {
 if ([string]::IsNullOrEmpty($node)) {
     [Console]::Error.WriteLine("skill-trace hook: node not found on PATH")
     exit 0
+}
+
+if ($env:SKILL_TRACE_DEBUG) {
+    [Console]::Error.WriteLine("skill-trace hook (ps1): node=$node store=$store stdin=$($stdin.Length) chars")
 }
 
 try {

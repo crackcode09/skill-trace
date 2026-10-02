@@ -30,6 +30,7 @@ function envFor(home) {
   const env = { ...process.env, [homeVar]: home, HOME: home, USERPROFILE: home };
   for (const k of Object.keys(env)) if (/^(SKILL_TRACE_|GLOBAL_SKILLS_)/.test(k)) delete env[k];
   env.SKILL_TRACE_NODE = process.execPath; // the wrapper runs the same node that runs this test
+  env.SKILL_TRACE_DEBUG = '1';             // hook explains on stderr why it ignored an event
   return env;
 }
 
