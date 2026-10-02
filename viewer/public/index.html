@@ -881,6 +881,9 @@ function renderEntries(skills) {
   document.getElementById('topbarStatus').textContent =
     allSkills.length ? `${count} of ${allSkills.length}` : '';
   renderFilterStrip();
+  // The dashboard groups whatever is in view; if it is showing, redraw it so a
+  // search or filter change is visible there too, not only in the hidden list.
+  if (dashboardMode) renderDashboard();
 
   if (!count) {
     const q = document.getElementById('search').value;
@@ -1056,7 +1059,9 @@ function renderDashboard() {
     dash.innerHTML =
       '<div class="dash-head"><span class="dash-title">Lessons by Stack tag</span></div>' +
       (source.length !== allSkills.length
-        ? '<p class="empty-state">No <code>**Stack:**</code> tags among the lessons in view. Clear the filter above to see every tag.</p>'
+        ? `<p class="empty-state">${document.getElementById('search').value.trim()
+            ? `No lessons match "${esc(document.getElementById('search').value.trim())}".`
+            : 'No <code>**Stack:**</code> tags among the lessons in view. Clear the filter above to see every tag.'}</p>`
         : '<p class="empty-state">No <code>**Stack:**</code> tags yet. Entries written by the ' +
       '<code>log-lesson</code> skill carry a Stack line; once you have a few, they group here.</p>');
     return;
