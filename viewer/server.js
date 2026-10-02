@@ -133,9 +133,9 @@ function dedupeGlobal() {
 // file at MD_PATH is handled two ways:
 //   1. First run: a hand-written legacy file with no store yet is MIGRATED
 //      (split into lesson files, renamed to *.legacy-<date>.md, rollup regenerated).
-//   2. Compatibility: until the hooks write to the store directly, they still
-//      append schema-1 entries to the rollup. Any entry whose body hash is not in
-//      the store is upserted, then the rollup is regenerated. Removed in PR C.
+//   2. Hand edits: anything typed into the rollup afterwards is absorbed (any
+//      entry whose body hash is not in the store is upserted, then the rollup is
+//      regenerated), so editing the single file by hand stays safe.
 
 function metaText(l) {
   const fm = store.serializeLesson(l).split('\n---\n')[0].replace(/^---\n/, '');
@@ -152,33 +152,11 @@ function toEntry(l) {
 }
 
 function absorbLegacy() {
-  if (!existsSync(MD_PATH)) return;
-  const content = readFileSync(MD_PATH, 'utf8');
-  const hasStore = existsSync(join(STORE_DIR, 'lessons'));
-  if (!store.isGenerated(MD_PATH) && !hasStore) {
-    const fileVersion = readSchemaVersion(content);
-    if (fileVersion > SCHEMA_VERSION) console.log(`[global-skills] legacy file schema v${fileVersion} newer than v${SCHEMA_VERSION} — migrating best-effort`);
-    const r = store.migrateLegacy(MD_PATH, STORE_DIR);
-    console.log(`[global-skills] migrated legacy log — ${r.migrated} lessons (${r.merged} merged), legacy kept as ${r.legacyRenamedTo}`);
-    return;
-  }
-  // compat: pick up entries the hooks appended to the rollup / legacy file
-  const known = new Set(store.loadStore(STORE_DIR).lessons.map(l => l.hash));
-  let added = 0;
-  for (const e of store.parseLegacyMd(content)) {
-    if (known.has(store.bodyHash(e.body))) continue;
-    const r = store.upsertGlobal(STORE_DIR, {
-      id: store.ulid(), type: 'Lesson', schema: store.SCHEMA, title: e.title, date: e.date, stack: e.stack,
-      projects: e.projects, seen: 1, created: `${e.date}T00:00:00Z`,
-      updated: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
-      body: e.body, hash: store.bodyHash(e.body),
-    });
-    if (r.action !== 'tombstoned') added++;
-  }
-  if (added || !store.isGenerated(MD_PATH)) {
-    store.regenRollup(STORE_DIR, MD_PATH);
-    if (added) console.log(`[global-skills] absorbed ${added} legacy-appended entr${added === 1 ? 'y' : 'ies'} into the store`);
-  }
+  // Migrates a hand-written legacy file on first run; afterwards absorbs anything
+  // typed into the rollup by hand. Same code path the sync hook uses.
+  const r = store.absorbFile(MD_PATH, STORE_DIR, { generatedBy: 'hook' });
+  if (r.action === 'migrated') console.log(`[global-skills] migrated legacy log — ${r.migrated} lessons (${r.merged} merged), legacy kept as ${r.legacyRenamedTo}`);
+  else if (r.action === 'absorbed' && r.added) console.log(`[global-skills] absorbed ${r.added} hand-written entr${r.added === 1 ? 'y' : 'ies'} into the store`);
 }
 
 function sync() {

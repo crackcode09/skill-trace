@@ -1,12 +1,15 @@
 ---
-description: Grant, revoke, or list trust for skill-trace sources (gates Phase 2 injection)
+description: Grant, revoke, or list trust for skill-trace sources (gates sync into the global store, and future injection)
 argument-hint: "[grant|revoke|list] [project-slug]"
 allowed-tools: Bash(node:*)
 ---
 
-The skill-trace trust registry decides which source projects may have their lessons
-**injected** into future sessions. The sync hook records every source as untrusted;
-only an explicit grant here (or a manual edit) flips a source to trusted.
+The skill-trace trust registry decides which projects may have their lessons
+**synced into the global store** (and, later, injected into sessions). Every
+project keeps its own lessons locally regardless. The sync hook records every
+source as untrusted; only an explicit grant here (or a manual edit) flips a source
+to trusted. **Granting syncs that project's existing lessons immediately**;
+revoking stops future syncs but keeps what was already synced.
 
 Run:
 
