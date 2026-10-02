@@ -269,6 +269,29 @@ const server = createServer((req, res) => {
     return res.end(JSON.stringify(results));
   }
 
+  // One lesson by id: GET returns it; DELETE removes it from the global store
+  // (tombstoned so a re-sync cannot resurrect it), regenerates the rollup and
+  // resyncs. Deleting here never reaches into any project's own store.
+  const one = url.pathname.match(/^\/api\/lessons\/([0-9A-Z]{26})$/);
+  if (one) {
+    const id = one[1];
+    const cors = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': `http://localhost:${PORT}` };
+    if (req.method === 'GET') {
+      const s = skills.find(x => x.id === id);
+      res.writeHead(s ? 200 : 404, cors);
+      return res.end(JSON.stringify(s || { error: 'not found' }));
+    }
+    if (req.method === 'DELETE') {
+      const deleted = store.deleteLesson(STORE_DIR, id);
+      store.regenRollup(STORE_DIR, existsSync(MD_PATH) ? MD_PATH : undefined);
+      sync();
+      res.writeHead(deleted ? 200 : 404, cors);
+      return res.end(JSON.stringify({ ok: deleted, id, count: skills.length }));
+    }
+    res.writeHead(405, { Allow: 'GET, DELETE' });
+    return res.end('Method Not Allowed');
+  }
+
   if (url.pathname === '/api/dedupe') {
     if (req.method !== 'POST') {
       res.writeHead(405, { Allow: 'POST' });

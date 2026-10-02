@@ -341,6 +341,21 @@ function deleteLesson(dir, id) {
   return true;
 }
 
+// Delete by id, or by a title fragment that matches exactly one lesson. An
+// ambiguous fragment is refused with the candidates listed, never guessed.
+function forget(dir, query) {
+  const q = String(query || '').trim();
+  if (!q) return { deleted: false, reason: 'empty query' };
+  const { lessons } = loadStore(dir);
+  let matches = lessons.filter(l => l.id === q);
+  if (!matches.length) matches = lessons.filter(l => l.title.toLowerCase().includes(q.toLowerCase()));
+  if (!matches.length) return { deleted: false, reason: 'no match', query: q };
+  if (matches.length > 1) return { deleted: false, reason: 'ambiguous', query: q, matches: matches.map(l => ({ id: l.id, title: l.title, date: l.date })) };
+  const [l] = matches;
+  deleteLesson(dir, l.id);
+  return { deleted: true, id: l.id, title: l.title, file: l.file };
+}
+
 // ── Rollups: schema-1 markdown (grep compatibility) + OKF index ───────────────
 
 function rollupMarkdown(dir, lessons) {
@@ -532,7 +547,10 @@ function syncProject(root, slug, { legacyMd, now } = {}) {
     for (const l of lessons) {
       if (l.edited) { l.hash = bodyHash(l.body); l.updated = ts; writeLesson(pdir, stripRuntime(l)); }
     }
-    if (lessons.length) regenRollup(pdir, md);
+    // Always refresh the store's own index.md. Regenerate the schema-1 rollup
+    // ONLY where the project already had that file (legacy, or an opted-in custom
+    // path): skill-trace never creates a docs/ folder in a project on its own.
+    if (lessons.length) regenRollup(pdir, fs.existsSync(md) ? md : undefined);
     trust.recordSource(slug, root, { locked: true });
     const trusted = trust.isTrusted(slug);
     let synced = 0;
@@ -583,7 +601,19 @@ async function cli(argv) {
   switch (cmd) {
     case 'status': {
       const { lessons, warnings } = loadStore(dir);
-      return out({ store: dir, lessons: lessons.length, edited: lessons.filter(l => l.edited).length, tombstones: readTombstones(dir).size, warnings });
+      const slug = flags.global ? undefined : projectSlug(root);
+      return out({
+        store: dir, lessons: lessons.length,
+        edited: lessons.filter(l => l.edited).map(l => ({ id: l.id, title: l.title })),
+        recurring: lessons.filter(l => (l.seen || 1) > 1).length,
+        tombstones: readTombstones(dir).size, warnings,
+        ...(slug ? { slug, trusted: trust.isTrusted(slug), rollup: fs.existsSync(rollupTarget) ? rollupTarget : null } : {}),
+      });
+    }
+    case 'forget': {
+      const r = forget(dir, args.join(' '));
+      if (r.deleted) regenRollup(dir, fs.existsSync(rollupTarget) ? rollupTarget : undefined);
+      return out(r);
     }
     case 'create': {
       // JSON on stdin: { title, date, stack[], body, generated_by? , project? }
@@ -595,11 +625,11 @@ async function cli(argv) {
     }
     case 'delete': {
       const ok = deleteLesson(dir, args[0]);
-      regenRollup(dir, rollupTarget);
+      regenRollup(dir, fs.existsSync(rollupTarget) ? rollupTarget : undefined);
       return out({ deleted: ok, id: args[0] });
     }
     case 'regen':
-      return out({ lessons: regenRollup(dir, rollupTarget), rollup: rollupTarget });
+      return out({ lessons: regenRollup(dir, flags.global || fs.existsSync(rollupTarget) ? rollupTarget : undefined), rollup: flags.global || fs.existsSync(rollupTarget) ? rollupTarget : null });
     case 'migrate':
       return out(migrateLegacy(rollupTarget, dir));
     case 'sync':
@@ -616,7 +646,7 @@ async function cli(argv) {
       catch (err) { process.stderr.write(`skill-trace hook: ${err.message}\n`); return; }
     }
     default:
-      process.stderr.write('usage: node store.js <status|create|delete <id>|regen|migrate|sync|hook> [--global] [--project=<dir>] [--slug=<slug>]\n');
+      process.stderr.write('usage: node store.js <status|create|delete <id>|forget <id|title text>|regen|migrate|sync|hook> [--global] [--project=<dir>] [--slug=<slug>]\n');
       process.exit(2);
   }
 }
@@ -627,7 +657,7 @@ if (require.main === module) {
 
 module.exports = {
   SCHEMA, DEFAULT_SOURCE_RE, storePaths, ulid, normalizeBody, bodyHash, parseLesson, serializeLesson, sections, extractSection,
-  slugify, lessonFilename, loadStore, writeLesson, createLesson, upsertLesson, upsertGlobal, deleteLesson, readTombstones,
+  slugify, lessonFilename, loadStore, writeLesson, createLesson, upsertLesson, upsertGlobal, deleteLesson, forget, readTombstones,
   regenRollup, rollupMarkdown, indexMarkdown, isGenerated, parseLegacyMd, migrateLegacy, absorbFile,
   projectRoot, projectSlug, syncProject,
 };
