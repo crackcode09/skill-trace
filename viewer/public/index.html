@@ -70,7 +70,11 @@ body {
   gap: 8px;
   white-space: nowrap;
   flex-shrink: 0;
+  background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; cursor: pointer; border-radius: 4px;
 }
+.topbar-brand:hover .brand-name { color: var(--accent); }
+.topbar-brand:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .brand-icon {
   width: 20px;
   height: 20px;
@@ -266,6 +270,17 @@ body {
   z-index: 1;
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+.filter-clear {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: 1px solid var(--border); border-radius: 4px;
+  padding: 2px 7px; font: inherit; font-size: 11px; line-height: 1.4;
+  color: var(--text-muted); cursor: pointer; white-space: nowrap;
+}
+.filter-clear:hover { color: var(--text); border-color: var(--text-muted); background: var(--surface-alt); }
+.filter-clear:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px;
   justify-content: space-between;
 }
 
@@ -606,7 +621,7 @@ body {
 <body>
 
 <div class="topbar" role="banner">
-  <div class="topbar-brand">
+  <button type="button" class="topbar-brand" id="homeBtn" title="Back to all lessons" aria-label="skill-trace — back to all lessons">
     <svg class="brand-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
       <!-- Trace path — execution trace / skill trail -->
       <circle cx="4" cy="10" r="2" fill="#58a6ff"/>
@@ -617,7 +632,7 @@ body {
       <path d="M6 10 Q10 15 14 10" stroke="#58a6ff" stroke-width="1.2" fill="none" opacity="0.25"/>
     </svg>
     <span class="brand-name">skill-trace</span>
-  </div>
+  </button>
 
   <div class="search-wrap">
     <svg class="search-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -672,7 +687,7 @@ body {
 <section id="dashboard" class="dashboard hidden" aria-label="Lessons by Stack tag"></section>
 
 <footer class="footer" role="contentinfo">
-  <a href="http://localhost:38888">http://localhost:38888</a>
+  <a href="/" id="footerHome">http://localhost:38888</a>
   <span class="footer-sep">·</span>
   <span id="footerCount"></span>
 </footer>
@@ -777,6 +792,16 @@ function renderEntries(skills) {
   const header = document.getElementById('entriesHeader');
   list.innerHTML = '';
   header.textContent = activeStack ? `Stack: ${activeStack}` : 'Entries';
+  if (activeStack) {
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'filter-clear';
+    clear.title = 'Clear Stack filter (Esc)';
+    clear.setAttribute('aria-label', `Clear Stack filter ${activeStack}`);
+    clear.innerHTML = '&times; clear';
+    clear.addEventListener('click', clearStackFilter);
+    header.appendChild(clear);
+  }
   list.appendChild(header);
 
   const count = skills.length;
@@ -922,6 +947,7 @@ document.addEventListener('keydown', e => {
     s.select();
   }
   if (e.key === 'Escape') {
+    if (activeStack) { clearStackFilter(); return; }
     const s = document.getElementById('search');
     if (s.value) { s.value = ''; s.dispatchEvent(new Event('input')); }
   }
@@ -993,8 +1019,31 @@ function toggleDashboard(on) {
   const btn = document.getElementById('dashToggle');
   btn.classList.toggle('active', on);
   btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-  if (on) renderDashboard();
+  if (on) {
+    // The dashboard is the overview — a previous drill-down must not linger
+    // behind it, or the top-bar count disagrees with the cards.
+    if (activeStack) { activeStack = null; filtered = allSkills; renderProjects(allSkills); renderEntries(allSkills); }
+    renderDashboard();
+  }
 }
+
+// Drop the Stack drill-down but keep the current search / project selection.
+function clearStackFilter() {
+  selectProject(activeProject);
+}
+
+// Back to the untouched starting view: no search, no filters, list mode.
+async function goHome() {
+  const s = document.getElementById('search');
+  s.value = '';
+  activeStack = null;
+  if (dashboardMode) toggleDashboard(false);
+  await selectProject('All');
+  if (allSkills.length > 0) selectEntry(allSkills[0]);
+}
+document.getElementById('homeBtn').addEventListener('click', goHome);
+document.getElementById('footerHome').addEventListener('click', e => { e.preventDefault(); goHome(); });
+document.getElementById('footerHome').textContent = location.origin;
 
 function drillStack(tag) {
   activeStack   = tag;
