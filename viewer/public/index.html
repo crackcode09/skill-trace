@@ -54,14 +54,18 @@ body {
 
 /* ── Topbar ── */
 .topbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(0, 760px) minmax(150px, 1fr);
   align-items: center;
-  gap: 12px;
+  column-gap: 16px;
   padding: 0 16px;
   height: 48px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+}
+.topbar-right {
+  display: flex; align-items: center; gap: 8px; justify-self: end;
 }
 
 .topbar-brand {
@@ -90,7 +94,7 @@ body {
 .search-wrap {
   flex: 1;
   position: relative;
-  max-width: 380px;
+  width: 100%;
 }
 .search-icon {
   position: absolute;
@@ -108,7 +112,7 @@ body {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 0 32px 0 30px;
+  padding: 0 92px 0 30px;
   color: var(--text);
   font-family: inherit;
   font-size: 13px;
@@ -138,24 +142,76 @@ body {
 #search:focus + .search-kbd,
 #search:not(:placeholder-shown) + .search-kbd { opacity: 0; }
 
-.topbar-status {
-  font-size: 12px;
+.search-count {
+  position: absolute;
+  right: 36px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
   color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  flex-shrink: 0;
+  pointer-events: none;
 }
+#search:focus ~ .search-count,
+#search:not(:placeholder-shown) ~ .search-count { right: 10px; }
+
+/* Segmented view switcher: List | Dashboard */
+.seg {
+  display: inline-flex; align-items: stretch;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden;
+}
+.seg button {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 11px;
+  background: none; border: 0; font: inherit; font-size: 12px;
+  color: var(--text-muted); cursor: pointer;
+  transition: color var(--trans), background var(--trans);
+}
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button:hover { color: var(--text); background: var(--surface-alt); }
+.seg button.active { color: var(--accent); background: var(--accent-dim); }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Active-filter strip: visible on both views whenever a filter is applied */
+.filter-strip {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 7px 16px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  font-size: 12px; color: var(--text-muted); flex-shrink: 0;
+}
+.filter-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 4px 2px 10px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text-body); white-space: nowrap;
+}
+.filter-chip b { font-weight: 500; color: var(--text); }
+.filter-chip button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: none; border: 0; font: inherit; font-size: 13px; line-height: 1;
+  color: var(--text-muted); cursor: pointer;
+}
+.filter-chip button:hover { color: var(--text); background: var(--surface-alt); }
+.filter-chip button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.filter-strip .filter-clear { margin-left: auto; }
 
 .refresh-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
   flex-shrink: 0;
   background: none;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
   cursor: pointer;
   transition: color var(--trans), border-color var(--trans), background var(--trans);
 }
@@ -165,6 +221,17 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
   .refresh-btn.spinning svg { animation: none; }
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    grid-template-columns: auto 1fr;
+    height: auto; padding: 8px 12px; row-gap: 8px;
+  }
+  .search-wrap  { grid-column: 1 / -1; grid-row: 2; }
+  .topbar-right { grid-column: 2; grid-row: 1; }
+  .seg .lbl, .refresh-btn .lbl { display: none; }
+  .seg button, .refresh-btn { padding: 0 9px; }
 }
 
 /* ── Three-column layout ── */
@@ -543,17 +610,6 @@ body {
 /* ── Dashboard (group-by-Stack overview) ── */
 .hidden { display: none !important; }
 
-.dash-toggle {
-  display: flex; align-items: center; gap: 6px;
-  height: 28px; padding: 0 10px; flex-shrink: 0;
-  background: none; border: 1px solid var(--border); border-radius: var(--radius);
-  color: var(--text-muted); cursor: pointer; font: inherit; font-size: 12px;
-  transition: color var(--trans), border-color var(--trans), background var(--trans);
-}
-.dash-toggle:hover { color: var(--text); border-color: var(--text-muted); background: var(--surface-alt); }
-.dash-toggle.active { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
-.dash-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
 .dashboard {
   flex: 1; overflow-y: auto; min-height: 0;
   padding: 28px 32px; background: var(--bg);
@@ -647,22 +703,37 @@ body {
       aria-label="Search skills entries"
     >
     <span class="search-kbd" aria-hidden="true">/</span>
+    <span class="search-count" id="topbarStatus" aria-live="polite"></span>
   </div>
 
-  <div class="topbar-status" id="topbarStatus" aria-live="polite">Loading…</div>
-  <button type="button" class="dash-toggle" id="dashToggle" aria-pressed="false" title="Group lessons by Stack tag">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-      <line x1="4" y1="20" x2="4" y2="13"/><line x1="10" y1="20" x2="10" y2="5"/><line x1="16" y1="20" x2="16" y2="10"/>
-    </svg>
-    Dashboard
-  </button>
-  <button type="button" class="refresh-btn" id="refreshBtn" title="Re-sync from global-skills.md" aria-label="Refresh skills database">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-      <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
-      <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-    </svg>
-  </button>
+  <div class="topbar-right">
+    <div class="seg" role="group" aria-label="View">
+      <button type="button" id="viewList" class="active" aria-pressed="true" title="List view">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+          <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+        <span class="lbl">List</span>
+      </button>
+      <button type="button" id="dashToggle" aria-pressed="false" title="Dashboard: lessons grouped by Stack tag">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        <span class="lbl">Dashboard</span>
+      </button>
+    </div>
+    <button type="button" class="refresh-btn" id="refreshBtn" title="Re-read global-skills.md" aria-label="Sync: re-read the global skills log">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+      </svg>
+      <span class="lbl">Sync</span>
+    </button>
+  </div>
 </div>
+
+<div class="filter-strip hidden" id="filterStrip" aria-label="Active filters"></div>
 
 <div class="columns" role="main">
   <nav class="col-projects" id="projectList" aria-label="Project filter">
@@ -808,7 +879,8 @@ function renderEntries(skills) {
   document.getElementById('footerCount').textContent =
     `${count} ${count === 1 ? 'entry' : 'entries'} · skill-trace v1.2.1-dev`;
   document.getElementById('topbarStatus').textContent =
-    count > 0 ? `${count} ${count === 1 ? 'entry' : 'entries'}` : 'No entries';
+    allSkills.length ? `${count} of ${allSkills.length}` : '';
+  renderFilterStrip();
 
   if (!count) {
     const q = document.getElementById('search').value;
@@ -958,8 +1030,11 @@ document.addEventListener('keydown', e => {
 function renderDashboard() {
   // Group lessons by Stack tag; keep a count and the most recent lesson title
   // per tag so each card carries real, differentiating information.
+  // Group the lessons currently in view (search + project filter), so the
+  // cards agree with the "N of M" count in the search box.
+  const source = filtered;
   const byTag = {};
-  for (const s of allSkills) {
+  for (const s of source) {
     for (const t of (s.stack || [])) {
       const g = byTag[t] || (byTag[t] = { count: 0, latest: null, projects: new Set() });
       g.count++;
@@ -973,8 +1048,10 @@ function renderDashboard() {
   if (!tags.length) {
     dash.innerHTML =
       '<div class="dash-head"><span class="dash-title">Lessons by Stack tag</span></div>' +
-      '<p class="empty-state">No <code>**Stack:**</code> tags yet. Entries written by the ' +
-      '<code>log-lesson</code> skill carry a Stack line; once you have a few, they group here.</p>';
+      (source.length !== allSkills.length
+        ? '<p class="empty-state">No <code>**Stack:**</code> tags among the lessons in view. Clear the filter above to see every tag.</p>'
+        : '<p class="empty-state">No <code>**Stack:**</code> tags yet. Entries written by the ' +
+      '<code>log-lesson</code> skill carry a Stack line; once you have a few, they group here.</p>');
     return;
   }
 
@@ -1002,7 +1079,7 @@ function renderDashboard() {
   dash.innerHTML =
     `<div class="dash-head">
        <span class="dash-title">Lessons by Stack tag</span>
-       <span class="dash-total">${allSkills.length} lessons · ${tags.length} tags</span>
+       <span class="dash-total">${source.length}${source.length !== allSkills.length ? ` of ${allSkills.length}` : ''} lessons · ${tags.length} tags</span>
      </div>
      <div class="tag-grid">${cards}</div>
      <p class="dash-hint">Click a tag to see its lessons.</p>`;
@@ -1016,13 +1093,19 @@ function toggleDashboard(on) {
   dashboardMode = on;
   document.getElementById('dashboard').classList.toggle('hidden', !on);
   document.querySelector('.columns').classList.toggle('hidden', on);
-  const btn = document.getElementById('dashToggle');
-  btn.classList.toggle('active', on);
-  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  for (const [id, active] of [['viewList', !on], ['dashToggle', on]]) {
+    const b = document.getElementById(id);
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-pressed', active ? 'true' : 'false');
+  }
   if (on) {
     // The dashboard is the overview — a previous drill-down must not linger
     // behind it, or the top-bar count disagrees with the cards.
-    if (activeStack) { activeStack = null; filtered = allSkills; renderProjects(allSkills); renderEntries(allSkills); }
+    if (activeStack) {
+      activeStack = null;
+      filtered = activeProject === 'All' ? allSkills : allSkills.filter(s => s.projects.includes(activeProject));
+      renderProjects(filtered); renderEntries(filtered);
+    }
     renderDashboard();
   }
 }
@@ -1046,16 +1129,52 @@ document.getElementById('footerHome').addEventListener('click', e => { e.prevent
 document.getElementById('footerHome').textContent = location.origin;
 
 function drillStack(tag) {
-  activeStack   = tag;
-  activeProject = 'All';
-  activeId      = null;
+  activeStack = tag;
+  activeId    = null;
   toggleDashboard(false);
-  filtered = allSkills.filter(s => (s.stack || []).includes(tag));
+  const scope = activeProject === 'All' ? allSkills : allSkills.filter(s => s.projects.includes(activeProject));
+  filtered = scope.filter(s => (s.stack || []).includes(tag));
   renderProjects(filtered);
   renderEntries(filtered);
 }
 
-document.getElementById('dashToggle').addEventListener('click', () => toggleDashboard(!dashboardMode));
+document.getElementById('dashToggle').addEventListener('click', () => { if (!dashboardMode) toggleDashboard(true); });
+document.getElementById('viewList').addEventListener('click', () => { if (dashboardMode) toggleDashboard(false); });
+
+// ── Active-filter strip ───────────────────────────────────────────────────────
+// One place that says what is narrowing the list, on both views, with a way out
+// per filter and for all of them.
+
+function renderFilterStrip() {
+  const strip = document.getElementById('filterStrip');
+  const chips = [];
+  if (activeProject !== 'All') chips.push({ label: 'Project', value: activeProject, clear: () => selectProject('All') });
+  if (activeStack)             chips.push({ label: 'Stack',   value: activeStack,   clear: clearStackFilter });
+  strip.classList.toggle('hidden', chips.length === 0);
+  strip.innerHTML = '';
+  if (!chips.length) return;
+  strip.append('Filtered by');
+  for (const c of chips) {
+    const chip = document.createElement('span');
+    chip.className = 'filter-chip';
+    chip.innerHTML = `${esc(c.label)}: <b>${esc(c.value)}</b>`;
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.innerHTML = '&times;';
+    x.setAttribute('aria-label', `Remove ${c.label} filter ${c.value}`);
+    x.addEventListener('click', c.clear);
+    chip.appendChild(x);
+    strip.appendChild(chip);
+  }
+  if (chips.length > 1) {
+    const all = document.createElement('button');
+    all.type = 'button';
+    all.className = 'filter-clear';
+    all.textContent = 'Clear all';
+    all.addEventListener('click', () => { activeStack = null; selectProject('All'); });
+    strip.appendChild(all);
+  }
+}
 
 // ── Refresh button ────────────────────────────────────────────────────────────
 
